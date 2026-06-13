@@ -105,6 +105,9 @@ async function saveDatabaseToTelegram() {
             dbToSave.records = dbToSave.records.slice(-30); // Keep last 30 uploads
         }
         
+        // Remove logs from Telegram backup since they easily exceed the 4096 char limit
+        if (dbToSave.logs) delete dbToSave.logs;
+        
         const messageText = `#DATABASE_BACKUP#\n${JSON.stringify(dbToSave)}`;
         
         // Send new DB message
@@ -132,11 +135,13 @@ function readDB() {
     return cachedDB;
 }
 
-function writeDB(data) {
+function writeDB(data, syncToTelegram = true) {
     cachedDB = data;
     try {
         fs.writeFileSync(DB_FILE, JSON.stringify(cachedDB, null, 2));
-        saveDatabaseToTelegram().catch(err => console.error("Async Telegram sync failed:", err));
+        if (syncToTelegram) {
+            saveDatabaseToTelegram().catch(err => console.error("Async Telegram sync failed:", err));
+        }
     } catch (err) {
         console.error("DB Write Error", err);
     }
@@ -147,7 +152,7 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/view')) {
         const db = readDB();
         db.stats.incomingRequests = (db.stats.incomingRequests || 0) + 1;
-        writeDB(db);
+        writeDB(db, false);
 
         const originalSend = res.send;
         const timestamp = new Date().toISOString();
@@ -191,7 +196,7 @@ app.use((req, res, next) => {
                 currentDb.logs = currentDb.logs.slice(-50);
             }
 
-            writeDB(currentDb);
+            writeDB(currentDb, false);
             
             return originalSend.apply(this, arguments);
         };
