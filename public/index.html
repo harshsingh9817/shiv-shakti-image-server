@@ -334,7 +334,10 @@
                             <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 1rem;">
                                 <div class="flex" style="justify-content: space-between; align-items: center; width: 100%;">
                                     <div>
-                                        <h3 style="margin-bottom: 0.25rem;">${web.name}</h3>
+                                        <h3 style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 8px;">
+                                            ${web.name} 
+                                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">ID: ${web.id}</span>
+                                        </h3>
                                         <p style="font-size: 0.85rem; color: var(--text-muted);">
                                             URL: ${web.url} | Channel: ${web.channel || 'Not Set'} | Session: ${web.sessionName || 'Main Session'}
                                         </p>
@@ -347,8 +350,11 @@
                                 <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                                     <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Security Key:</span>
                                     <code style="font-family: monospace; color: var(--primary); font-size: 0.85rem; font-weight: bold; flex-grow: 1; word-break: break-all;">${web.securityKey || 'Not Available'}</code>
+                                    <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--glass-border); display: flex; align-items: center; gap: 4px;" onclick="navigator.clipboard.writeText('${web.id || ''}'); alert('Copied Web ID!')">
+                                        <ion-icon name="copy-outline"></ion-icon> Copy ID
+                                    </button>
                                     <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--glass-border); display: flex; align-items: center; gap: 4px;" onclick="navigator.clipboard.writeText('${web.securityKey || ''}'); alert('Copied Security Key!')">
-                                        <ion-icon name="copy-outline"></ion-icon> Copy
+                                        <ion-icon name="copy-outline"></ion-icon> Copy Key
                                     </button>
                                 </div>
                             </div>
