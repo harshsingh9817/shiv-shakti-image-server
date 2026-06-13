@@ -1,0 +1,251 @@
+{
+  "records": [
+    {
+      "id": "rec_1781139792029",
+      "filename": "photo_2026-05-28_15-42-41.jpg",
+      "size": 51991,
+      "telegramLink": "https://t.me/c/3992574269/4",
+      "timestamp": "2026-06-11T01:03:12.029Z"
+    }
+  ],
+  "stats": {
+    "incomingRequests": 71,
+    "outgoingRequests": 1
+  },
+  "webs": [
+    {
+      "id": "web_1",
+      "name": "My Website 1",
+      "url": "https://example.com",
+      "channel": "-100456..."
+    },
+    {
+      "id": "web_1781336495990",
+      "name": "Local Dev Website",
+      "url": "http://localhost:3001",
+      "channel": "",
+      "session": "main",
+      "sessionName": "Main Session",
+      "securityKey": "sec_ufktaswrn5lwv8sz"
+    }
+  ],
+  "secondarySessions": [],
+  "logs": [
+    {
+      "id": "log_1781335431833_wgqr",
+      "timestamp": "2026-06-13T07:23:51.832Z",
+      "method": "POST",
+      "path": "/api/login",
+      "reqBody": "{\"password\":\"admin123\"}",
+      "status": 401,
+      "resBody": "{\"success\":false,\"message\":\"Invalid password.\"}"
+    },
+    {
+      "id": "log_1781335539322_3azm",
+      "timestamp": "2026-06-13T07:25:39.322Z",
+      "method": "POST",
+      "path": "/api/login",
+      "reqBody": "{\"password\":\"admin\"}",
+      "status": 200,
+      "resBody": "{\"success\":true,\"token\":\"admin-auth-token-xyz\"}"
+    },
+    {
+      "id": "log_1781335539334_2ili",
+      "timestamp": "2026-06-13T07:25:39.333Z",
+      "method": "GET",
+      "path": "/api/stats",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "{\"transmissionToday\":\"0.00\",\"connectedWebs\":1,\"incomingRequests\":50,\"outgoingRequests\":1}"
+    },
+    {
+      "id": "log_1781335539423_wetg",
+      "timestamp": "2026-06-13T07:25:39.422Z",
+      "method": "GET",
+      "path": "/api/records",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"rec_1781139792029\",\"filename\":\"photo_2026-05-28_15-42-41.jpg\",\"size\":51991,\"telegramLink\":\"https://t.me/c/3992574269/4\",\"timestamp\":\"2026-06-1"
+    },
+    {
+      "id": "log_1781335539460_4g6j",
+      "timestamp": "2026-06-13T07:25:39.460Z",
+      "method": "GET",
+      "path": "/api/webs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"web_1\",\"name\":\"My Website 1\",\"url\":\"https://example.com\",\"channel\":\"-100456...\"}]"
+    },
+    {
+      "id": "log_1781335539471_zlo4",
+      "timestamp": "2026-06-13T07:25:39.471Z",
+      "method": "GET",
+      "path": "/api/sessions",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[]"
+    },
+    {
+      "id": "log_1781335539484_fpad",
+      "timestamp": "2026-06-13T07:25:39.483Z",
+      "method": "GET",
+      "path": "/api/logs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"log_1781335431833_wgqr\",\"timestamp\":\"2026-06-13T07:23:51.832Z\",\"method\":\"POST\",\"path\":\"/api/login\",\"reqBody\":\"{\\\"password\\\":\\\"admin123\\\"}\",\"st"
+    },
+    {
+      "id": "log_1781336180730_eqy2",
+      "timestamp": "2026-06-13T07:36:20.730Z",
+      "method": "POST",
+      "path": "/api/login",
+      "reqBody": "{\"password\":\"admin\"}",
+      "status": 200,
+      "resBody": "{\"success\":true,\"token\":\"admin-auth-token-xyz\"}"
+    },
+    {
+      "id": "log_1781336180904_jbhq",
+      "timestamp": "2026-06-13T07:36:20.903Z",
+      "method": "GET",
+      "path": "/api/stats",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "{\"transmissionToday\":\"0.00\",\"connectedWebs\":1,\"incomingRequests\":56,\"outgoingRequests\":1}"
+    },
+    {
+      "id": "log_1781336181125_07e3",
+      "timestamp": "2026-06-13T07:36:21.125Z",
+      "method": "GET",
+      "path": "/api/records",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"rec_1781139792029\",\"filename\":\"photo_2026-05-28_15-42-41.jpg\",\"size\":51991,\"telegramLink\":\"https://t.me/c/3992574269/4\",\"timestamp\":\"2026-06-1"
+    },
+    {
+      "id": "log_1781336181422_6zug",
+      "timestamp": "2026-06-13T07:36:21.422Z",
+      "method": "GET",
+      "path": "/api/webs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"web_1\",\"name\":\"My Website 1\",\"url\":\"https://example.com\",\"channel\":\"-100456...\"}]"
+    },
+    {
+      "id": "log_1781336184853_in2e",
+      "timestamp": "2026-06-13T07:36:24.852Z",
+      "method": "GET",
+      "path": "/api/sessions",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[]"
+    },
+    {
+      "id": "log_1781336185082_zonm",
+      "timestamp": "2026-06-13T07:36:25.081Z",
+      "method": "GET",
+      "path": "/api/logs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"log_1781335431833_wgqr\",\"timestamp\":\"2026-06-13T07:23:51.832Z\",\"method\":\"POST\",\"path\":\"/api/login\",\"reqBody\":\"{\\\"password\\\":\\\"admin123\\\"}\",\"st"
+    },
+    {
+      "id": "log_1781336251836_a9rx",
+      "timestamp": "2026-06-13T07:37:31.836Z",
+      "method": "GET",
+      "path": "/api/stats",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "{\"transmissionToday\":\"0.00\",\"connectedWebs\":1,\"incomingRequests\":61,\"outgoingRequests\":1}"
+    },
+    {
+      "id": "log_1781336251958_nhrd",
+      "timestamp": "2026-06-13T07:37:31.957Z",
+      "method": "GET",
+      "path": "/api/records",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"rec_1781139792029\",\"filename\":\"photo_2026-05-28_15-42-41.jpg\",\"size\":51991,\"telegramLink\":\"https://t.me/c/3992574269/4\",\"timestamp\":\"2026-06-1"
+    },
+    {
+      "id": "log_1781336252013_i5hv",
+      "timestamp": "2026-06-13T07:37:32.012Z",
+      "method": "GET",
+      "path": "/api/webs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"web_1\",\"name\":\"My Website 1\",\"url\":\"https://example.com\",\"channel\":\"-100456...\"}]"
+    },
+    {
+      "id": "log_1781336252060_oy1t",
+      "timestamp": "2026-06-13T07:37:32.059Z",
+      "method": "GET",
+      "path": "/api/sessions",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[]"
+    },
+    {
+      "id": "log_1781336252124_pmxw",
+      "timestamp": "2026-06-13T07:37:32.124Z",
+      "method": "GET",
+      "path": "/api/logs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"log_1781335431833_wgqr\",\"timestamp\":\"2026-06-13T07:23:51.832Z\",\"method\":\"POST\",\"path\":\"/api/login\",\"reqBody\":\"{\\\"password\\\":\\\"admin123\\\"}\",\"st"
+    },
+    {
+      "id": "log_1781336496115_ddns",
+      "timestamp": "2026-06-13T07:41:35.986Z",
+      "method": "POST",
+      "path": "/api/webs",
+      "reqBody": "{\"name\":\"Local Dev Website\",\"url\":\"http://localhost:3001\",\"channel\":\"\",\"session\":\"main\",\"sessionName\":\"Main Session\"}",
+      "status": 200,
+      "resBody": "{\"success\":true,\"web\":{\"id\":\"web_1781336495990\",\"name\":\"Local Dev Website\",\"url\":\"http://localhost:3001\",\"channel\":\"\",\"session\":\"main\",\"sessionName\":\""
+    },
+    {
+      "id": "log_1781336496416_u6nn",
+      "timestamp": "2026-06-13T07:41:36.414Z",
+      "method": "GET",
+      "path": "/api/stats",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "{\"transmissionToday\":\"0.00\",\"connectedWebs\":2,\"incomingRequests\":67,\"outgoingRequests\":1}"
+    },
+    {
+      "id": "log_1781336497945_rats",
+      "timestamp": "2026-06-13T07:41:37.944Z",
+      "method": "GET",
+      "path": "/api/records",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"rec_1781139792029\",\"filename\":\"photo_2026-05-28_15-42-41.jpg\",\"size\":51991,\"telegramLink\":\"https://t.me/c/3992574269/4\",\"timestamp\":\"2026-06-1"
+    },
+    {
+      "id": "log_1781336502421_nmeg",
+      "timestamp": "2026-06-13T07:41:42.420Z",
+      "method": "GET",
+      "path": "/api/webs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"web_1\",\"name\":\"My Website 1\",\"url\":\"https://example.com\",\"channel\":\"-100456...\"},{\"id\":\"web_1781336495990\",\"name\":\"Local Dev Website\",\"url\":\"h"
+    },
+    {
+      "id": "log_1781336502755_seeu",
+      "timestamp": "2026-06-13T07:41:42.755Z",
+      "method": "GET",
+      "path": "/api/sessions",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[]"
+    },
+    {
+      "id": "log_1781336504051_awtk",
+      "timestamp": "2026-06-13T07:41:44.046Z",
+      "method": "GET",
+      "path": "/api/logs",
+      "reqBody": "None",
+      "status": 200,
+      "resBody": "[{\"id\":\"log_1781335431833_wgqr\",\"timestamp\":\"2026-06-13T07:23:51.832Z\",\"method\":\"POST\",\"path\":\"/api/login\",\"reqBody\":\"{\\\"password\\\":\\\"admin123\\\"}\",\"st"
+    }
+  ]
+}
