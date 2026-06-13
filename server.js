@@ -532,17 +532,21 @@ app.get('/api/image/:recordId', async (req, res) => {
             return res.status(404).send("Error: File record not found.");
         }
 
-        // Validate web ID linkage
-        if (!record.webId) {
-            return res.status(403).send("Forbidden: This file is not associated with any Web Connection.");
+        // ==========================================================
+        // KEY-BASED AUTHENTICATION (More robust, works without webId)
+        // ==========================================================
+        let web = db.webs.find(w => w.securityKey === key);
+        
+        // Fallback: if key doesn't match directly, try finding by the record's associated webId
+        if (!web && record.webId) {
+            web = db.webs.find(w => w.id === record.webId);
         }
 
-        const web = db.webs.find(w => w.id === record.webId);
         if (!web) {
-            return res.status(403).send("Forbidden: The associated Web Connection no longer exists.");
+            return res.status(403).send("Forbidden: Associated Web Connection not found or invalid key.");
         }
 
-        // Security key validation
+        // Security key validation (only if we didn't find the web directly by key)
         if (web.securityKey !== key) {
             return res.status(403).send("Forbidden: Invalid security key.");
         }
@@ -612,7 +616,7 @@ app.post('/api/logs/clear', (req, res) => {
 
     const db = readDB();
     db.logs = [];
-    writeDB(db);
+    writeDB(db, false);
     res.json({ success: true });
 });
 
@@ -628,12 +632,14 @@ app.get('/view/:recordId', async (req, res) => {
             return res.status(404).send("Not Found");
         }
 
-        // Must be associated with a web connection
-        if (!record.webId) {
-            return res.status(404).send("Not Found");
+        // Find the web connection using the security key provided
+        let web = db.webs.find(w => w.securityKey === key);
+        
+        // Fallback to record's webId
+        if (!web && record.webId) {
+            web = db.webs.find(w => w.id === record.webId);
         }
 
-        const web = db.webs.find(w => w.id === record.webId);
         if (!web) {
             return res.status(404).send("Not Found");
         }
