@@ -16,6 +16,11 @@ app.use(express.json());
 // Serve the frontend files from the "public" directory
 app.use(express.static('public'));
 
+// Lightweight keep-alive route
+app.get('/ping', (req, res) => {
+    res.status(200).send('pong');
+});
+
 // ==========================================
 // SECURE CONFIGURATIONS (reads from env vars, falls back to defaults for local dev)
 // ==========================================
