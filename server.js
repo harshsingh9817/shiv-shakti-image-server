@@ -807,7 +807,33 @@ app.get('/api/image/:recordId', async (req, res) => {
 
     try {
         const db = readDB();
-        const record = db.records.find(r => r.id === recordId);
+        let record = db.records.find(r => r.id === recordId);
+        
+        // --- FUZZY MATCH FALLBACK FOR RECOVERED RECORDS ---
+        // If the record isn't found by exact ID, but looks like an old timestamp ID...
+        if (!record && recordId.startsWith('rec_') && !recordId.startsWith('rec_tg_')) {
+            const requestedTs = parseInt(recordId.replace('rec_', ''));
+            if (!isNaN(requestedTs)) {
+                let closest = null;
+                let minDiff = 60000; // Search within 60 seconds
+                for (const r of db.records) {
+                    if (!r.timestamp) continue;
+                    const rTs = new Date(r.timestamp).getTime();
+                    const diff = Math.abs(rTs - requestedTs);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closest = r;
+                    }
+                }
+                if (closest) {
+                    // Temporarily use this closest record to serve the image
+                    // This permanently fixes the broken URL!
+                    record = closest;
+                }
+            }
+        }
+        // --------------------------------------------------
+
         if (!record) {
             return res.status(404).send("Error: File record not found.");
         }
@@ -923,7 +949,28 @@ app.get('/view/:recordId', async (req, res) => {
 
     try {
         const db = readDB();
-        const record = db.records.find(r => r.id === recordId);
+        let record = db.records.find(r => r.id === recordId);
+        
+        // --- FUZZY MATCH FALLBACK FOR RECOVERED RECORDS ---
+        if (!record && recordId.startsWith('rec_') && !recordId.startsWith('rec_tg_')) {
+            const requestedTs = parseInt(recordId.replace('rec_', ''));
+            if (!isNaN(requestedTs)) {
+                let closest = null;
+                let minDiff = 60000;
+                for (const r of db.records) {
+                    if (!r.timestamp) continue;
+                    const rTs = new Date(r.timestamp).getTime();
+                    const diff = Math.abs(rTs - requestedTs);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closest = r;
+                    }
+                }
+                if (closest) record = closest;
+            }
+        }
+        // --------------------------------------------------
+
         if (!record) {
             return res.status(404).send("Not Found");
         }
