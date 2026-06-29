@@ -3,10 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-<<<<<<< HEAD
 const sharp = require('sharp');
-=======
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const { ConnectionTCPObfuscated } = require('telegram/network');
@@ -14,10 +11,11 @@ const { ConnectionTCPObfuscated } = require('telegram/network');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-<<<<<<< HEAD
 // ==========================================
-// IMAGE CACHE INFRASTRUCTURE
+// IMAGE CACHE INFRASTRUCTURE (DISK + MEMORY)
 // ==========================================
+// Disk cache for image variants (OK if Render wipes it — images re-download from Telegram)
+// Memory LRU on top for instant <5ms serving
 const CACHE_DIR = path.join(__dirname, 'cache');
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
 
@@ -29,8 +27,8 @@ const QUALITY_VARIANTS = {
     high:  { maxWidth: 2000, quality: 85, label: 'High/Original quality' }
 };
 
-// In-memory LRU cache for hot images (max 200 entries)
-const MEMORY_CACHE_MAX = 200;
+// In-memory LRU cache for images (max 500 entries — memory only, no disk)
+const MEMORY_CACHE_MAX = 500;
 const memoryCache = new Map();
 
 function memoryCacheGet(key) {
@@ -55,8 +53,6 @@ function memoryCacheSet(key, buffer) {
 // Track which records have variants being generated
 const generatingVariants = new Set();
 
-=======
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -209,7 +205,7 @@ app.use((req, res, next) => {
         const originalSend = res.send;
         const timestamp = new Date().toISOString();
         const method = req.method;
-        const path = req.path;
+        const reqPath = req.path;
         
         let reqBody = "";
         if (req.body && Object.keys(req.body).length > 0) {
@@ -237,7 +233,7 @@ app.use((req, res, next) => {
                 id: "log_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
                 timestamp,
                 method,
-                path,
+                path: reqPath,
                 reqBody: reqBody || "None",
                 status: res.statusCode,
                 resBody
@@ -497,14 +493,14 @@ async function getClientForSession(sessionKey) {
     }
 }
 
-<<<<<<< HEAD
 // ==========================================
 // IMAGE VARIANT GENERATION & CACHE SERVING
+// (All in-memory — no disk storage, survives Render restarts via pre-warming)
 // ==========================================
 
 /**
- * Generate all quality variants for a record in the background.
- * Downloads original from Telegram once, then creates thumb/low/mid/high on disk.
+ * Generate all quality variants for a record and store in memory cache.
+ * Downloads original from Telegram once, generates thumb/low/mid/high in RAM.
  */
 async function generateVariants(record, uploadClient) {
     const recordId = record.id;
@@ -543,28 +539,31 @@ async function generateVariants(record, uploadClient) {
         // Check if this is an image (skip variant generation for non-images)
         const mimetype = record.mimetype || '';
         if (!mimetype.startsWith('image/')) {
-            // For non-images, just cache the original
             const originalPath = path.join(recordCacheDir, 'original');
             fs.writeFileSync(originalPath, originalBuffer);
-            console.log(`[Cache] Non-image file cached as original for ${recordId}`);
+            memoryCacheSet(`${recordId}:original`, originalBuffer);
+            console.log(`[Cache] Non-image file cached for ${recordId}`);
             generatingVariants.delete(recordId);
             return;
         }
 
-        // Generate each variant (thumb first — it's the fastest to generate and smallest to serve)
+        // Generate each variant in memory (thumb first — smallest, fastest)
         const variantOrder = ['thumb', 'low', 'mid', 'high'];
         for (const variant of variantOrder) {
             try {
                 const config = QUALITY_VARIANTS[variant];
+
                 const outputPath = path.join(recordCacheDir, `${variant}.jpg`);
 
-                await sharp(originalBuffer)
+                const variantBuffer = await sharp(originalBuffer)
                     .resize({ width: config.maxWidth, withoutEnlargement: true })
                     .jpeg({ quality: config.quality, mozjpeg: true })
-                    .toFile(outputPath);
+                    .toBuffer();
 
-                const stat = fs.statSync(outputPath);
-                console.log(`[Cache] ${recordId}/${variant}.jpg → ${(stat.size / 1024).toFixed(1)}KB`);
+                // Save to disk + memory
+                fs.writeFileSync(outputPath, variantBuffer);
+                memoryCacheSet(`${recordId}:${variant}`, variantBuffer);
+                console.log(`[Cache] ${recordId}:${variant} → ${(variantBuffer.length / 1024).toFixed(1)}KB`);
             } catch (varErr) {
                 console.error(`[Cache] Failed to generate ${variant} for ${recordId}:`, varErr.message);
             }
@@ -581,8 +580,7 @@ async function generateVariants(record, uploadClient) {
 }
 
 /**
- * Get the best available cached variant for a record.
- * Priority: memory LRU → disk cache → Telegram fallback.
+ * Get the best available cached variant for a record from memory.
  * @param {string} recordId
  * @param {string} quality - 'thumb', 'low', 'mid', 'high'
  * @returns {Buffer|null}
@@ -592,28 +590,27 @@ function getCachedImage(recordId, quality = 'mid') {
 
     // 1. Check memory LRU cache (fastest, <1ms)
     const memBuf = memoryCacheGet(cacheKey);
-    if (memBuf) return memBuf;
+    if (memBuf) return { buffer: memBuf, actualQuality: quality };
 
-    // 2. Check disk cache
+    // 2. Check disk cache (still fast, <15ms)
     const filePath = path.join(CACHE_DIR, recordId, `${quality}.jpg`);
     if (fs.existsSync(filePath)) {
         const diskBuf = fs.readFileSync(filePath);
         memoryCacheSet(cacheKey, diskBuf); // Promote to memory
-        return diskBuf;
+        return { buffer: diskBuf, actualQuality: quality };
     }
 
-    // 3. Fallback: try lower quality variants that might already exist
+    // 3. Fallback: try other quality variants (memory then disk)
     const fallbackOrder = ['thumb', 'low', 'mid', 'high'];
-    const requestedIdx = fallbackOrder.indexOf(quality);
-    // Try lower qualities first (they generate faster)
-    for (let i = 0; i < fallbackOrder.length; i++) {
-        if (i === requestedIdx) continue;
-        const fallbackPath = path.join(CACHE_DIR, recordId, `${fallbackOrder[i]}.jpg`);
-        if (fs.existsSync(fallbackPath)) {
-            const fallbackBuf = fs.readFileSync(fallbackPath);
-            const fallbackKey = `${recordId}:${fallbackOrder[i]}`;
-            memoryCacheSet(fallbackKey, fallbackBuf);
-            return fallbackBuf;
+    for (const fallback of fallbackOrder) {
+        if (fallback === quality) continue;
+        const fallbackMemBuf = memoryCacheGet(`${recordId}:${fallback}`);
+        if (fallbackMemBuf) return { buffer: fallbackMemBuf, actualQuality: fallback };
+        const fallbackDiskPath = path.join(CACHE_DIR, recordId, `${fallback}.jpg`);
+        if (fs.existsSync(fallbackDiskPath)) {
+            const fallbackDiskBuf = fs.readFileSync(fallbackDiskPath);
+            memoryCacheSet(`${recordId}:${fallback}`, fallbackDiskBuf);
+            return { buffer: fallbackDiskBuf, actualQuality: fallback };
         }
     }
 
@@ -624,22 +621,20 @@ function getCachedImage(recordId, quality = 'mid') {
  * Serve a cached image with proper headers.
  * Returns true if served from cache, false if cache miss.
  */
-function serveCachedImageResponse(res, recordId, quality, mimetype) {
-    const buffer = getCachedImage(recordId, quality);
-    if (buffer) {
+function serveCachedImageResponse(res, recordId, quality) {
+    const cached = getCachedImage(recordId, quality);
+    if (cached) {
         res.setHeader('Content-Type', 'image/jpeg');
-        res.setHeader('Content-Length', buffer.length);
-        res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 days
+        res.setHeader('Content-Length', cached.buffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 days browser cache
         res.setHeader('X-Cache', 'HIT');
-        res.setHeader('X-Quality', quality);
-        res.send(buffer);
+        res.setHeader('X-Quality', cached.actualQuality);
+        res.send(cached.buffer);
         return true;
     }
     return false;
 }
 
-=======
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     const token = req.headers.authorization;
     if (token !== "admin-auth-token-xyz") return res.status(403).json({ error: "Unauthorized" });
@@ -705,44 +700,31 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             telegramLink: telegramLink
         });
 
-<<<<<<< HEAD
-        // Fire-and-forget: generate cache variants in background
+        // Fire-and-forget: generate cache variants in background (stored in memory)
         if (file.mimetype && file.mimetype.startsWith('image/')) {
             generateVariants(newRecord, uploadClient).catch(err => {
                 console.error(`[Cache] Background variant generation failed:`, err.message);
             });
         }
 
-=======
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     } catch (error) {
         console.error("Upload failed:", error);
         res.status(500).json({ error: "Failed to upload to Telegram." });
     }
 });
 
-<<<<<<< HEAD
 // Serve secure media stream — CACHE-FIRST with quality variants
 app.get('/api/image/:recordId', async (req, res) => {
     const { recordId } = req.params;
     const { key, q } = req.query;
-=======
-// Serve secure media stream from Telegram
-app.get('/api/image/:recordId', async (req, res) => {
-    const { recordId } = req.params;
-    const { key } = req.query;
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 
     if (!recordId || !key) {
         return res.status(400).send("Bad Request: Missing recordId or key parameter.");
     }
 
-<<<<<<< HEAD
     // Determine requested quality (default: mid, ?q=high for full quality)
     const quality = ['thumb', 'low', 'mid', 'high'].includes(q) ? q : 'mid';
 
-=======
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     try {
         const db = readDB();
         const record = db.records.find(r => r.id === recordId);
@@ -785,20 +767,16 @@ app.get('/api/image/:recordId', async (req, res) => {
             }
         }
 
-<<<<<<< HEAD
         // ============================================
-        // CACHE-FIRST SERVING (memory → disk → Telegram)
+        // CACHE-FIRST SERVING (memory only → Telegram fallback)
         // ============================================
-        if (serveCachedImageResponse(res, recordId, quality, record.mimetype)) {
-            return; // Served from cache in <15ms
+        if (serveCachedImageResponse(res, recordId, quality)) {
+            return; // Served from memory cache in <5ms
         }
 
-        // Cache miss — download from Telegram (slow path, only happens once per image)
+        // Cache miss — download from Telegram (slow path, only happens once per image after restart)
         console.log(`[Cache MISS] ${recordId} — downloading from Telegram...`);
         
-=======
-        // Retrieve Telegram Client for the configured session of this Web Connection
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const uploadClient = await getClientForSession(web.session);
         if (!uploadClient) {
             return res.status(500).send("Error: Telegram client is offline.");
@@ -807,46 +785,29 @@ app.get('/api/image/:recordId', async (req, res) => {
         const targetChannel = record.channelId || GLOBAL_CHANNEL_ID;
         const messageId = parseInt(record.messageId);
 
-<<<<<<< HEAD
-=======
-        console.log(`Downloading secure image message ${messageId} from channel ${targetChannel}...`);
-
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const messages = await uploadClient.getMessages(targetChannel, { ids: [messageId] });
         if (!messages || messages.length === 0 || !messages[0].media) {
             return res.status(404).send("Error: Media not found in Telegram channel.");
         }
 
-<<<<<<< HEAD
-=======
-        // Download media buffer
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const buffer = await uploadClient.downloadMedia(messages[0].media);
         if (!buffer) {
             return res.status(500).send("Error: Failed to stream media from Telegram.");
         }
 
-<<<<<<< HEAD
         // Send the original immediately
         res.setHeader('Content-Type', record.mimetype || 'image/jpeg');
         res.setHeader('Cache-Control', 'public, max-age=604800');
         res.setHeader('X-Cache', 'MISS');
         res.send(buffer);
 
-        // Fire-and-forget: generate all variants for next time
+        // Fire-and-forget: generate all variants in memory for next time
         if (record.mimetype && record.mimetype.startsWith('image/')) {
             generateVariants(record, uploadClient).catch(err => {
                 console.error(`[Cache] On-demand variant generation failed:`, err.message);
             });
         }
 
-=======
-        // Send file bytes directly to browser
-        res.setHeader('Content-Type', record.mimetype || 'image/jpeg');
-        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-        res.send(buffer);
-
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     } catch (err) {
         console.error("Secure image streaming error:", err);
         res.status(500).send("Internal Server Error.");
@@ -873,19 +834,12 @@ app.post('/api/logs/clear', (req, res) => {
     res.json({ success: true });
 });
 
-<<<<<<< HEAD
 // Serve private media view page — CACHE-FIRST
 app.get('/view/:recordId', async (req, res) => {
     const { recordId } = req.params;
     const { key, q } = req.query;
 
     const quality = ['thumb', 'low', 'mid', 'high'].includes(q) ? q : 'mid';
-=======
-// Serve private media view page (looks like not reached if referer or key matches fail)
-app.get('/view/:recordId', async (req, res) => {
-    const { recordId } = req.params;
-    const { key } = req.query;
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 
     try {
         const db = readDB();
@@ -929,18 +883,14 @@ app.get('/view/:recordId', async (req, res) => {
             return res.status(404).send("Not Found");
         }
 
-<<<<<<< HEAD
         // ============================================
-        // CACHE-FIRST SERVING (memory → disk → Telegram)
+        // CACHE-FIRST SERVING (memory only → Telegram fallback)
         // ============================================
-        if (serveCachedImageResponse(res, recordId, quality, record.mimetype)) {
-            return; // Served from cache in <15ms
+        if (serveCachedImageResponse(res, recordId, quality)) {
+            return; // Served from memory cache in <5ms
         }
 
         // Cache miss — download from Telegram
-=======
-        // Retrieve Telegram Client for the configured session
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const uploadClient = await getClientForSession(web.session);
         if (!uploadClient) {
             return res.status(500).send("Offline");
@@ -960,23 +910,17 @@ app.get('/view/:recordId', async (req, res) => {
         }
 
         res.setHeader('Content-Type', record.mimetype || 'image/jpeg');
-<<<<<<< HEAD
         res.setHeader('Cache-Control', 'public, max-age=604800');
         res.setHeader('X-Cache', 'MISS');
         res.send(buffer);
 
-        // Fire-and-forget: generate variants for next time
+        // Fire-and-forget: generate variants in memory for next time
         if (record.mimetype && record.mimetype.startsWith('image/')) {
             generateVariants(record, uploadClient).catch(err => {
                 console.error(`[Cache] On-demand variant generation failed:`, err.message);
             });
         }
 
-=======
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-        res.send(buffer);
-
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     } catch (err) {
         console.error("Secure view streaming error:", err);
         res.status(500).send("Error");
@@ -997,33 +941,32 @@ async function startServer() {
             
             // Sync the DB from the Telegram channel
             await syncDatabaseFromTelegram();
-<<<<<<< HEAD
 
-            // Pre-warm cache: generate variants for existing records that aren't cached yet
+            // Pre-warm memory cache: generate variants for existing image records
             const db = readDB();
-            const uncachedImages = db.records.filter(r => {
-                if (!r.mimetype || !r.mimetype.startsWith('image/')) return false;
-                const cacheDir = path.join(CACHE_DIR, r.id);
-                const midPath = path.join(cacheDir, 'mid.jpg');
-                return !fs.existsSync(midPath);
-            });
+            const imageRecords = db.records.filter(r => r.mimetype && r.mimetype.startsWith('image/'));
 
-            if (uncachedImages.length > 0) {
-                console.log(`[Cache] Pre-warming cache for ${uncachedImages.length} uncached images...`);
+            if (imageRecords.length > 0) {
+                // Only pre-warm images not already cached on disk
+                const uncached = imageRecords.filter(r => {
+                    const midPath = path.join(CACHE_DIR, r.id, 'mid.jpg');
+                    return !fs.existsSync(midPath);
+                });
+                if (uncached.length > 0) {
+                    console.log(`[Cache] Pre-warming cache for ${uncached.length} uncached images...`);
+                }
                 // Process in background, don't block server start
                 (async () => {
-                    for (const record of uncachedImages) {
+                    for (const record of uncached) {
                         try {
                             await generateVariants(record, client);
                         } catch (err) {
                             console.error(`[Cache] Pre-warm failed for ${record.id}:`, err.message);
                         }
                     }
-                    console.log(`[Cache] Pre-warming complete!`);
+                    if (uncached.length > 0) console.log(`[Cache] Pre-warming complete! ${memoryCache.size} memory entries.`);
                 })();
             }
-=======
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         } catch (err) {
             console.error("\n❌ Telegram Connection Error:", err.message);
             if (err.message.includes("AUTH_KEY_DUPLICATED")) {
@@ -1037,11 +980,7 @@ async function startServer() {
     
     app.listen(PORT, () => {
         console.log(`Server running at http://localhost:${PORT}`);
-<<<<<<< HEAD
-        console.log(`[Cache] Cache directory: ${CACHE_DIR}`);
-        console.log(`[Cache] Memory cache max entries: ${MEMORY_CACHE_MAX}`);
-=======
->>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
+        console.log(`[Cache] Disk cache: ${CACHE_DIR} | Memory LRU: max ${MEMORY_CACHE_MAX} entries`);
     });
 }
 
