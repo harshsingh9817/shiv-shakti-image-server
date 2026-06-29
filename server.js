@@ -843,28 +843,48 @@ app.get('/api/image/:recordId', async (req, res) => {
         // ==========================================================
         let web = db.webs.find(w => w.securityKey === key);
         
-        // Fallback: if key doesn't match directly, try finding by the record's associated webId
+        // Fallback 1: if key doesn't match directly, try finding by the record's associated webId
         if (!web && record.webId) {
             web = db.webs.find(w => w.id === record.webId);
+        }
+
+        // Fallback 2: Check Referer for recovered records where webId is null
+        const referer = req.headers.referer || req.headers.origin;
+        if (!web && referer) {
+            for (const w of db.webs) {
+                if (w.url) {
+                    try {
+                        const urlObj = new URL(w.url);
+                        const refObj = new URL(referer);
+                        if (urlObj.hostname === refObj.hostname || refObj.hostname === 'localhost') {
+                            web = w;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
         }
 
         if (!web) {
             return res.status(403).send("Forbidden: Associated Web Connection not found or invalid key.");
         }
 
-        // Security key validation (only if we didn't find the web directly by key)
-        if (web.securityKey !== key) {
+        // Security key validation (only if we didn't find the web directly by key or fallback 2)
+        if (key && web.securityKey && web.securityKey !== key) {
+            // If they provided a key, it MUST match the web connection's key
             return res.status(403).send("Forbidden: Invalid security key.");
         }
 
         // Domain verification (Referer check)
-        if (web.url) {
+        // Skip this strict check if they provided a valid security key
+        const hasValidKey = (key && web.securityKey === key);
+        if (web.url && !hasValidKey) {
             const referer = req.headers.referer || req.headers.origin;
             if (referer) {
                 try {
                     const urlObj = new URL(web.url);
                     const refObj = new URL(referer);
-                    if (urlObj.hostname !== refObj.hostname && refObj.hostname !== 'localhost') {
+                    if (urlObj.hostname !== refObj.hostname && refObj.hostname !== 'localhost' && refObj.hostname !== req.hostname) {
                         return res.status(403).send("Forbidden: Domain mismatch.");
                     }
                 } catch (urlErr) {
