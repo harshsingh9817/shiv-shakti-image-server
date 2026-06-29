@@ -841,7 +841,7 @@ app.get('/api/image/:recordId', async (req, res) => {
         // ==========================================================
         // KEY-BASED AUTHENTICATION (More robust, works without webId)
         // ==========================================================
-        let web = db.webs.find(w => w.securityKey === key);
+        let web = key ? db.webs.find(w => w.securityKey === key) : null;
         
         // Fallback 1: if key doesn't match directly, try finding by the record's associated webId
         if (!web && record.webId) {
@@ -996,7 +996,7 @@ app.get('/view/:recordId', async (req, res) => {
         }
 
         // Find the web connection using the security key provided
-        let web = db.webs.find(w => w.securityKey === key);
+        let web = key ? db.webs.find(w => w.securityKey === key) : null;
         
         // Fallback 1: record's webId
         if (!web && record.webId) {
