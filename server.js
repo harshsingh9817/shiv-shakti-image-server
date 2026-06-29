@@ -99,20 +99,57 @@ async function syncDatabaseFromTelegram() {
     }
     try {
         console.log("Fetching database from Telegram channel...");
-        const messages = await client.getMessages(GLOBAL_CHANNEL_ID, { limit: 50 });
-        let dbMessage = null;
+        const messages = await client.getMessages(GLOBAL_CHANNEL_ID, { limit: 100 });
+        
+        let configMessage = null;
+        const recordChunks = [];
+
         for (const msg of messages) {
-            if (msg.message && msg.message.startsWith("#DATABASE_BACKUP#")) {
-                dbMessage = msg;
-                break;
+            if (!msg.message) continue;
+            if (msg.message.startsWith("#DATABASE_BACKUP#")) {
+                configMessage = msg;
+            } else if (msg.message.startsWith("#DB_RECORDS_")) {
+                // Extract chunk index and data
+                const match = msg.message.match(/^#DB_RECORDS_(\d+)#\n(.+)$/s);
+                if (match) {
+                    recordChunks.push({ index: parseInt(match[1]), data: match[2], id: msg.id });
+                }
             }
         }
 
-        if (dbMessage) {
-            const jsonStr = dbMessage.message.replace("#DATABASE_BACKUP#", "").trim();
+        if (configMessage) {
+            const jsonStr = configMessage.message.replace("#DATABASE_BACKUP#", "").trim();
             cachedDB = JSON.parse(jsonStr);
+            
+            // Load records from separate chunk messages
+            if (recordChunks.length > 0) {
+                recordChunks.sort((a, b) => a.index - b.index);
+                cachedDB.records = [];
+                for (const chunk of recordChunks) {
+                    try {
+                        const chunkRecords = JSON.parse(chunk.data);
+                        // Reconstruct full records from slim format
+                        for (const r of chunkRecords) {
+                            cachedDB.records.push({
+                                id: r.id,
+                                webId: r.wId || r.webId || null,
+                                channelId: r.ch || r.channelId || GLOBAL_CHANNEL_ID,
+                                messageId: r.mId || r.messageId,
+                                mimetype: r.mt || r.mimetype || 'image/jpeg',
+                                filename: r.fn || r.filename || '',
+                                size: r.sz || r.size || 0,
+                                telegramLink: '', // Reconstructed on demand
+                                timestamp: r.ts || r.timestamp || ''
+                            });
+                        }
+                    } catch (parseErr) {
+                        console.error(`Failed to parse record chunk ${chunk.index}:`, parseErr.message);
+                    }
+                }
+            }
+            
             fs.writeFileSync(DB_FILE, JSON.stringify(cachedDB, null, 2));
-            console.log("Database successfully synced from Telegram!");
+            console.log(`Database synced from Telegram! ${cachedDB.records.length} records loaded.`);
         } else {
             console.log("No database found on Telegram. Initializing database on Telegram...");
             loadLocalDB();
@@ -147,33 +184,76 @@ function loadLocalDB() {
 async function saveDatabaseToTelegram() {
     if (!client) return;
     try {
-        // Deep copy DB and limit records to prevent Telegram message limit overflow
-        const dbToSave = JSON.parse(JSON.stringify(cachedDB));
-        if (dbToSave.records && dbToSave.records.length > 30) {
-            dbToSave.records = dbToSave.records.slice(-30); // Keep last 30 uploads
-        }
+        // Separate config (small) from records (can be large)
+        const dbConfig = JSON.parse(JSON.stringify(cachedDB));
+        const allRecords = dbConfig.records || [];
+        delete dbConfig.records; // Remove records from main config
+        delete dbConfig.logs;   // Remove logs (too large)
         
-        // Remove logs from Telegram backup since they easily exceed the 4096 char limit
-        if (dbToSave.logs) delete dbToSave.logs;
+        // Save main config message (webs, sessions, stats — always small)
+        const configText = `#DATABASE_BACKUP#\n${JSON.stringify(dbConfig)}`;
+        const sentConfig = await client.sendMessage(GLOBAL_CHANNEL_ID, { message: configText });
         
-        const messageText = `#DATABASE_BACKUP#\n${JSON.stringify(dbToSave)}`;
+        // Split records into chunks that fit within Telegram's 4096 char limit
+        const CHUNK_MAX_CHARS = 3800; // Leave room for the tag
+        const sentChunkIds = [];
+        let currentChunk = [];
+        let currentChunkStr = '';
+        let chunkIndex = 0;
         
-        // Send new DB message
-        const sentMsg = await client.sendMessage(GLOBAL_CHANNEL_ID, { message: messageText });
-        
-        // Find and delete older backups to avoid cluttering the channel
-        const messages = await client.getMessages(GLOBAL_CHANNEL_ID, { limit: 50 });
-        const oldMessageIds = [];
-        for (const msg of messages) {
-            if (msg.message && msg.message.startsWith("#DATABASE_BACKUP#") && msg.id !== sentMsg.id) {
-                oldMessageIds.push(msg.id);
+        for (const record of allRecords) {
+            // Slim down records for storage (remove reconstructable fields)
+            const slim = {
+                id: record.id,
+                wId: record.webId,
+                ch: record.channelId,
+                mId: record.messageId,
+                mt: record.mimetype,
+                fn: record.filename,
+                sz: record.size,
+                ts: record.timestamp
+            };
+            
+            const testAdd = currentChunk.length === 0 
+                ? JSON.stringify([slim]) 
+                : JSON.stringify([...currentChunk, slim]);
+            
+            if (testAdd.length > CHUNK_MAX_CHARS && currentChunk.length > 0) {
+                // Send current chunk
+                const chunkText = `#DB_RECORDS_${chunkIndex}#\n${JSON.stringify(currentChunk)}`;
+                const sent = await client.sendMessage(GLOBAL_CHANNEL_ID, { message: chunkText });
+                sentChunkIds.push(sent.id);
+                chunkIndex++;
+                currentChunk = [slim];
+            } else {
+                currentChunk.push(slim);
             }
         }
-
-        if (oldMessageIds.length > 0) {
-            await client.deleteMessages(GLOBAL_CHANNEL_ID, oldMessageIds, { revoke: true });
+        
+        // Send last chunk
+        if (currentChunk.length > 0) {
+            const chunkText = `#DB_RECORDS_${chunkIndex}#\n${JSON.stringify(currentChunk)}`;
+            const sent = await client.sendMessage(GLOBAL_CHANNEL_ID, { message: chunkText });
+            sentChunkIds.push(sent.id);
         }
-        console.log("Database backup saved to Telegram!");
+        
+        // Delete old backup messages (keep only the ones we just sent)
+        const newIds = new Set([sentConfig.id, ...sentChunkIds]);
+        const oldMessages = await client.getMessages(GLOBAL_CHANNEL_ID, { limit: 100 });
+        const oldToDelete = [];
+        for (const msg of oldMessages) {
+            if (!msg.message) continue;
+            if (newIds.has(msg.id)) continue;
+            if (msg.message.startsWith("#DATABASE_BACKUP#") || msg.message.startsWith("#DB_RECORDS_")) {
+                oldToDelete.push(msg.id);
+            }
+        }
+        
+        if (oldToDelete.length > 0) {
+            await client.deleteMessages(GLOBAL_CHANNEL_ID, oldToDelete, { revoke: true });
+        }
+        
+        console.log(`Database backup saved to Telegram! ${allRecords.length} records in ${chunkIndex + 1} chunks.`);
     } catch (err) {
         console.error("Failed to save database to Telegram:", err.message);
     }
