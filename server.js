@@ -978,31 +978,48 @@ app.get('/view/:recordId', async (req, res) => {
         // Find the web connection using the security key provided
         let web = db.webs.find(w => w.securityKey === key);
         
-        // Fallback to record's webId
+        // Fallback 1: record's webId
         if (!web && record.webId) {
             web = db.webs.find(w => w.id === record.webId);
+        }
+
+        let isAuthorized = false;
+
+        // Fallback 2: If we still don't have a web connection (e.g. for recovered records where webId is null),
+        // we can check if the Referer header matches ANY of our registered web connections.
+        const referer = req.headers.referer || req.headers.origin;
+        if (!web && referer) {
+            for (const w of db.webs) {
+                if (w.url) {
+                    try {
+                        const urlObj = new URL(w.url);
+                        const refObj = new URL(referer);
+                        if (urlObj.hostname === refObj.hostname || refObj.hostname === 'localhost') {
+                            web = w; // Found a matching web connection!
+                            isAuthorized = true;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
         }
 
         if (!web) {
             return res.status(404).send("Not Found");
         }
 
-        // Validate: either security key matches, OR Referer origin matches
-        let isAuthorized = false;
-        if (key && web.securityKey === key) {
-            isAuthorized = true;
-        } else {
-            const referer = req.headers.referer || req.headers.origin;
-            if (referer && web.url) {
+        // Validate: either security key matches, OR Referer origin matches (if not already authorized by Fallback 2)
+        if (!isAuthorized) {
+            if (key && web.securityKey === key) {
+                isAuthorized = true;
+            } else if (referer && web.url) {
                 try {
                     const urlObj = new URL(web.url);
                     const refObj = new URL(referer);
                     if (urlObj.hostname === refObj.hostname || refObj.hostname === 'localhost') {
                         isAuthorized = true;
                     }
-                } catch (e) {
-                    // Ignore parse issues
-                }
+                } catch (e) {}
             }
         }
 
