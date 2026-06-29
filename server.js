@@ -21,9 +21,9 @@ if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
 
 // Quality variant definitions
 const QUALITY_VARIANTS = {
-    thumb: { maxWidth: 400, quality: 20, label: 'Thumbnail ~40-50KB' },
-    low:   { maxWidth: 800, quality: 40, label: 'Low ~100KB' },
-    mid:   { maxWidth: 1200, quality: 65, label: 'Mid ~200-400KB' },
+    thumb: { maxWidth: 400, quality: 30, label: 'Thumbnail ~30-40KB' },
+    low:   { maxWidth: 800, quality: 50, label: 'Low ~60-80KB' },
+    mid:   { maxWidth: 1024, quality: 78, label: 'Mid ~100KB' }, // Sweet spot for <100kb but high sharpness
     high:  { maxWidth: 2000, quality: 85, label: 'High/Original quality' }
 };
 
@@ -356,6 +356,55 @@ app.post('/api/login', (req, res) => {
         res.json({ success: true, token: "admin-auth-token-xyz" });
     } else {
         res.status(401).json({ success: false, message: "Invalid password." });
+    }
+});
+
+// Admin Route: Clear Entire Database and Telegram Channel
+app.post('/api/admin/clear-db', async (req, res) => {
+    const token = req.headers.authorization;
+    if (token !== "admin-auth-token-xyz") return res.status(403).json({ error: "Unauthorized" });
+
+    try {
+        console.log("⚠️ CLEAR DB REQUESTED! Deleting all messages from Telegram channel...");
+
+        // 1. Delete ALL messages in the channel
+        let offsetId = 0;
+        let deletedCount = 0;
+        while (true) {
+            const messages = await client.getMessages(GLOBAL_CHANNEL_ID, { limit: 100, offsetId });
+            if (messages.length === 0) break;
+
+            const ids = messages.map(m => m.id);
+            await client.deleteMessages(GLOBAL_CHANNEL_ID, ids, { revoke: true });
+            deletedCount += ids.length;
+            
+            // Advance offset
+            offsetId = messages[messages.length - 1].id;
+        }
+        console.log(`🗑️ Deleted ${deletedCount} messages from Telegram channel.`);
+
+        // 2. Clear local memory database
+        cachedDB = {
+            records: [],
+            stats: { incomingRequests: 0, outgoingRequests: 0 },
+            webs: [],
+            secondarySessions: []
+        };
+
+        // 3. Clear disk cache
+        if (fs.existsSync(CACHE_DIR)) {
+            fs.rmSync(CACHE_DIR, { recursive: true, force: true });
+            fs.mkdirSync(CACHE_DIR);
+            console.log("🗑️ Cleared local disk cache.");
+        }
+
+        // 4. Save empty DB to Telegram
+        await saveDatabaseToTelegram();
+
+        res.json({ success: true, message: `Database wiped completely. Deleted ${deletedCount} Telegram messages.` });
+    } catch (error) {
+        console.error("Failed to clear database:", error);
+        res.status(500).json({ error: "Failed to clear database" });
     }
 });
 
