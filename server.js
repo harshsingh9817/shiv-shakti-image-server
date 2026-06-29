@@ -3,7 +3,10 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+<<<<<<< HEAD
 const sharp = require('sharp');
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const { ConnectionTCPObfuscated } = require('telegram/network');
@@ -11,6 +14,7 @@ const { ConnectionTCPObfuscated } = require('telegram/network');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+<<<<<<< HEAD
 // ==========================================
 // IMAGE CACHE INFRASTRUCTURE
 // ==========================================
@@ -51,6 +55,8 @@ function memoryCacheSet(key, buffer) {
 // Track which records have variants being generated
 const generatingVariants = new Set();
 
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -491,6 +497,7 @@ async function getClientForSession(sessionKey) {
     }
 }
 
+<<<<<<< HEAD
 // ==========================================
 // IMAGE VARIANT GENERATION & CACHE SERVING
 // ==========================================
@@ -631,6 +638,8 @@ function serveCachedImageResponse(res, recordId, quality, mimetype) {
     return false;
 }
 
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     const token = req.headers.authorization;
     if (token !== "admin-auth-token-xyz") return res.status(403).json({ error: "Unauthorized" });
@@ -696,6 +705,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             telegramLink: telegramLink
         });
 
+<<<<<<< HEAD
         // Fire-and-forget: generate cache variants in background
         if (file.mimetype && file.mimetype.startsWith('image/')) {
             generateVariants(newRecord, uploadClient).catch(err => {
@@ -703,24 +713,36 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             });
         }
 
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     } catch (error) {
         console.error("Upload failed:", error);
         res.status(500).json({ error: "Failed to upload to Telegram." });
     }
 });
 
+<<<<<<< HEAD
 // Serve secure media stream — CACHE-FIRST with quality variants
 app.get('/api/image/:recordId', async (req, res) => {
     const { recordId } = req.params;
     const { key, q } = req.query;
+=======
+// Serve secure media stream from Telegram
+app.get('/api/image/:recordId', async (req, res) => {
+    const { recordId } = req.params;
+    const { key } = req.query;
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 
     if (!recordId || !key) {
         return res.status(400).send("Bad Request: Missing recordId or key parameter.");
     }
 
+<<<<<<< HEAD
     // Determine requested quality (default: mid, ?q=high for full quality)
     const quality = ['thumb', 'low', 'mid', 'high'].includes(q) ? q : 'mid';
 
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     try {
         const db = readDB();
         const record = db.records.find(r => r.id === recordId);
@@ -763,6 +785,7 @@ app.get('/api/image/:recordId', async (req, res) => {
             }
         }
 
+<<<<<<< HEAD
         // ============================================
         // CACHE-FIRST SERVING (memory → disk → Telegram)
         // ============================================
@@ -773,6 +796,9 @@ app.get('/api/image/:recordId', async (req, res) => {
         // Cache miss — download from Telegram (slow path, only happens once per image)
         console.log(`[Cache MISS] ${recordId} — downloading from Telegram...`);
         
+=======
+        // Retrieve Telegram Client for the configured session of this Web Connection
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const uploadClient = await getClientForSession(web.session);
         if (!uploadClient) {
             return res.status(500).send("Error: Telegram client is offline.");
@@ -781,16 +807,26 @@ app.get('/api/image/:recordId', async (req, res) => {
         const targetChannel = record.channelId || GLOBAL_CHANNEL_ID;
         const messageId = parseInt(record.messageId);
 
+<<<<<<< HEAD
+=======
+        console.log(`Downloading secure image message ${messageId} from channel ${targetChannel}...`);
+
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const messages = await uploadClient.getMessages(targetChannel, { ids: [messageId] });
         if (!messages || messages.length === 0 || !messages[0].media) {
             return res.status(404).send("Error: Media not found in Telegram channel.");
         }
 
+<<<<<<< HEAD
+=======
+        // Download media buffer
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const buffer = await uploadClient.downloadMedia(messages[0].media);
         if (!buffer) {
             return res.status(500).send("Error: Failed to stream media from Telegram.");
         }
 
+<<<<<<< HEAD
         // Send the original immediately
         res.setHeader('Content-Type', record.mimetype || 'image/jpeg');
         res.setHeader('Cache-Control', 'public, max-age=604800');
@@ -804,6 +840,13 @@ app.get('/api/image/:recordId', async (req, res) => {
             });
         }
 
+=======
+        // Send file bytes directly to browser
+        res.setHeader('Content-Type', record.mimetype || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+        res.send(buffer);
+
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     } catch (err) {
         console.error("Secure image streaming error:", err);
         res.status(500).send("Internal Server Error.");
@@ -830,12 +873,19 @@ app.post('/api/logs/clear', (req, res) => {
     res.json({ success: true });
 });
 
+<<<<<<< HEAD
 // Serve private media view page — CACHE-FIRST
 app.get('/view/:recordId', async (req, res) => {
     const { recordId } = req.params;
     const { key, q } = req.query;
 
     const quality = ['thumb', 'low', 'mid', 'high'].includes(q) ? q : 'mid';
+=======
+// Serve private media view page (looks like not reached if referer or key matches fail)
+app.get('/view/:recordId', async (req, res) => {
+    const { recordId } = req.params;
+    const { key } = req.query;
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 
     try {
         const db = readDB();
@@ -879,6 +929,7 @@ app.get('/view/:recordId', async (req, res) => {
             return res.status(404).send("Not Found");
         }
 
+<<<<<<< HEAD
         // ============================================
         // CACHE-FIRST SERVING (memory → disk → Telegram)
         // ============================================
@@ -887,6 +938,9 @@ app.get('/view/:recordId', async (req, res) => {
         }
 
         // Cache miss — download from Telegram
+=======
+        // Retrieve Telegram Client for the configured session
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         const uploadClient = await getClientForSession(web.session);
         if (!uploadClient) {
             return res.status(500).send("Offline");
@@ -906,6 +960,7 @@ app.get('/view/:recordId', async (req, res) => {
         }
 
         res.setHeader('Content-Type', record.mimetype || 'image/jpeg');
+<<<<<<< HEAD
         res.setHeader('Cache-Control', 'public, max-age=604800');
         res.setHeader('X-Cache', 'MISS');
         res.send(buffer);
@@ -917,6 +972,11 @@ app.get('/view/:recordId', async (req, res) => {
             });
         }
 
+=======
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.send(buffer);
+
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     } catch (err) {
         console.error("Secure view streaming error:", err);
         res.status(500).send("Error");
@@ -937,6 +997,7 @@ async function startServer() {
             
             // Sync the DB from the Telegram channel
             await syncDatabaseFromTelegram();
+<<<<<<< HEAD
 
             // Pre-warm cache: generate variants for existing records that aren't cached yet
             const db = readDB();
@@ -961,6 +1022,8 @@ async function startServer() {
                     console.log(`[Cache] Pre-warming complete!`);
                 })();
             }
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
         } catch (err) {
             console.error("\n❌ Telegram Connection Error:", err.message);
             if (err.message.includes("AUTH_KEY_DUPLICATED")) {
@@ -974,8 +1037,11 @@ async function startServer() {
     
     app.listen(PORT, () => {
         console.log(`Server running at http://localhost:${PORT}`);
+<<<<<<< HEAD
         console.log(`[Cache] Cache directory: ${CACHE_DIR}`);
         console.log(`[Cache] Memory cache max entries: ${MEMORY_CACHE_MAX}`);
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
     });
 }
 

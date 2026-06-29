@@ -1,4 +1,7 @@
 node_modules/
 temp_uploads/
+<<<<<<< HEAD
 cache/
+=======
+>>>>>>> 30fc63bc9a83611e1fb74a67f7de335863d9ede7
 .env
