@@ -509,6 +509,25 @@ app.delete('/api/webs/:id', (req, res) => {
     res.json({ success: true });
 });
 
+// Edit web connection (name, url, extra urls)
+app.put('/api/webs/:id', (req, res) => {
+    const token = req.headers.authorization;
+    if (token !== "admin-auth-token-xyz") return res.status(403).json({ error: "Unauthorized" });
+
+    const { id } = req.params;
+    const { name, url, extraUrls } = req.body;
+    const db = readDB();
+    const web = db.webs.find(w => w.id === id);
+    if (!web) return res.status(404).json({ error: "Web connection not found." });
+
+    if (name !== undefined) web.name = name;
+    if (url !== undefined) web.url = url;
+    if (extraUrls !== undefined) web.extraUrls = extraUrls;
+    writeDB(db);
+
+    res.json({ success: true, web });
+});
+
 // Secondary session routes
 app.get('/api/sessions', (req, res) => {
     const token = req.headers.authorization;

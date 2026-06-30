@@ -336,23 +336,72 @@
                     if (!webs || webs.length === 0) {
                         webConnectionsList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 1rem;">No web connections configured.</p>`;
                     } else {
-                        webConnectionsList.innerHTML = webs.map(web => `
-                            <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 1rem;">
+                        webConnectionsList.innerHTML = webs.map(web => {
+                            const extraUrlsHtml = (web.extraUrls && web.extraUrls.length > 0)
+                                ? web.extraUrls.map((eu, idx) => `
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                                        <ion-icon name="link-outline" style="color: var(--primary); font-size: 0.85rem; flex-shrink: 0;"></ion-icon>
+                                        <code style="font-size: 0.8rem; color: var(--text-muted); flex-grow: 1; word-break: break-all;">${eu}</code>
+                                        <button class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; background: rgba(239,68,68,0.15); color: var(--danger); display: flex; align-items: center; gap: 3px;" onclick="removeExtraUrl('${web.id}', ${idx})">
+                                            <ion-icon name="close-outline"></ion-icon> Remove
+                                        </button>
+                                    </div>
+                                `).join('')
+                                : '';
+
+                            return `
+                            <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 1rem;" id="web-item-${web.id}">
                                 <div class="flex" style="justify-content: space-between; align-items: center; width: 100%;">
                                     <div>
-                                        <h3 style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 8px;">
+                                        <h3 style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 8px;" id="web-name-display-${web.id}">
                                             ${web.name} 
                                             <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">ID: ${web.id}</span>
+                                            <button class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; background: rgba(99,102,241,0.15); color: var(--primary); display: inline-flex; align-items: center; gap: 3px;" onclick="showEditName('${web.id}', '${web.name.replace(/'/g, "\\'")}')">
+                                                <ion-icon name="pencil-outline"></ion-icon> Edit
+                                            </button>
                                         </h3>
+                                        <div id="web-name-edit-${web.id}" style="display: none; margin-bottom: 0.5rem;">
+                                            <div class="flex" style="gap: 0.5rem; align-items: center;">
+                                                <input type="text" id="web-name-input-${web.id}" style="padding: 0.4rem 0.75rem; font-size: 0.85rem; max-width: 250px; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: #fff;" value="${web.name.replace(/"/g, '&quot;')}">
+                                                <button class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="saveEditName('${web.id}')">Save</button>
+                                                <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; background: var(--glass-border);" onclick="cancelEditName('${web.id}')">Cancel</button>
+                                            </div>
+                                        </div>
                                         <p style="font-size: 0.85rem; color: var(--text-muted);">
                                             URL: ${web.url} | Channel: ${web.channel || 'Not Set'} | Session: ${web.sessionName || 'Main Session'}
                                         </p>
                                     </div>
-                                    <div class="flex" style="gap: 1rem; align-items: center;">
+                                    <div class="flex" style="gap: 0.75rem; align-items: center;">
                                         <span class="badge active">Active</span>
-                                        <button class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="removeWebConnection('${web.id}')">Remove</button>
+                                        <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; display: flex; align-items: center; gap: 4px;" onclick="toggleAddExtraUrl('${web.id}')">
+                                            <ion-icon name="add-outline"></ion-icon> Add URL
+                                        </button>
+                                        <button class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;" onclick="revokeWebConnection('${web.id}', '${web.name.replace(/'/g, "\\'")}')">
+                                            <ion-icon name="ban-outline"></ion-icon> Revoke
+                                        </button>
                                     </div>
                                 </div>
+
+                                <!-- Add Extra URL inline form (hidden by default) -->
+                                <div id="add-url-form-${web.id}" style="display: none; padding: 0.75rem 1rem; background: rgba(99,102,241,0.05); border-radius: 8px; border: 1px solid rgba(99,102,241,0.15);">
+                                    <div class="flex" style="gap: 0.5rem; align-items: center;">
+                                        <input type="text" id="extra-url-input-${web.id}" placeholder="https://another-domain.com" style="padding: 0.4rem 0.75rem; font-size: 0.85rem; flex-grow: 1; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: #fff;">
+                                        <button class="btn btn-primary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;" onclick="addExtraUrl('${web.id}')">
+                                            <ion-icon name="checkmark-outline"></ion-icon> Add
+                                        </button>
+                                        <button class="btn" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; background: var(--glass-border);" onclick="toggleAddExtraUrl('${web.id}')">Cancel</button>
+                                    </div>
+                                </div>
+
+                                ${(web.extraUrls && web.extraUrls.length > 0) ? `
+                                <div style="padding: 0.5rem 0;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.4rem; display: block;">Extra Connected URLs:</span>
+                                    <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                                        ${extraUrlsHtml}
+                                    </div>
+                                </div>
+                                ` : ''}
+
                                 <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                                     <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Security Key:</span>
                                     <code style="font-family: monospace; color: var(--primary); font-size: 0.85rem; font-weight: bold; flex-grow: 1; word-break: break-all;">${web.securityKey || 'Not Available'}</code>
@@ -364,7 +413,7 @@
                                     </button>
                                 </div>
                             </div>
-                        `).join('');
+                        `}).join('');
                     }
                 }
 
@@ -603,6 +652,159 @@
                 document.body.style.cursor = 'default';
                 console.error(err);
                 alert("An error occurred while clearing the database.");
+            }
+        }
+
+        // ==========================================
+        // EDIT CONNECTION NAME
+        // ==========================================
+        function showEditName(webId, currentName) {
+            document.getElementById('web-name-display-' + webId).style.display = 'none';
+            const editDiv = document.getElementById('web-name-edit-' + webId);
+            editDiv.style.display = 'block';
+            document.getElementById('web-name-input-' + webId).value = currentName;
+            document.getElementById('web-name-input-' + webId).focus();
+        }
+
+        function cancelEditName(webId) {
+            document.getElementById('web-name-display-' + webId).style.display = 'flex';
+            document.getElementById('web-name-edit-' + webId).style.display = 'none';
+        }
+
+        async function saveEditName(webId) {
+            const newName = document.getElementById('web-name-input-' + webId).value.trim();
+            if (!newName) return alert('Name cannot be empty.');
+
+            try {
+                const res = await fetch(`/api/webs/${webId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ name: newName })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to update name.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error updating connection name.');
+            }
+        }
+
+        // ==========================================
+        // REVOKE (DELETE) CONNECTION
+        // ==========================================
+        async function revokeWebConnection(id, name) {
+            if (!confirm(`Are you sure you want to revoke the connection "${name}"?\n\nThis will permanently remove this web connection and its security key.`)) return;
+            try {
+                const res = await fetch(`/api/webs/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authToken }
+                });
+                if (res.ok) {
+                    loadData();
+                } else {
+                    alert('Failed to revoke connection.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error revoking connection.');
+            }
+        }
+
+        // ==========================================
+        // ADD / REMOVE EXTRA URLs
+        // ==========================================
+        function toggleAddExtraUrl(webId) {
+            const form = document.getElementById('add-url-form-' + webId);
+            if (form.style.display === 'none') {
+                form.style.display = 'block';
+                document.getElementById('extra-url-input-' + webId).value = '';
+                document.getElementById('extra-url-input-' + webId).focus();
+            } else {
+                form.style.display = 'none';
+            }
+        }
+
+        async function addExtraUrl(webId) {
+            const input = document.getElementById('extra-url-input-' + webId);
+            const newUrl = input.value.trim();
+            if (!newUrl) return alert('Please enter a URL.');
+
+            try {
+                // First fetch current web data to get existing extra urls
+                const websRes = await fetch('/api/webs', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (!websRes.ok) return alert('Failed to fetch web data.');
+                const webs = await websRes.json();
+                const web = webs.find(w => w.id === webId);
+                if (!web) return alert('Web connection not found.');
+
+                const currentExtraUrls = web.extraUrls || [];
+                currentExtraUrls.push(newUrl);
+
+                const res = await fetch(`/api/webs/${webId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ extraUrls: currentExtraUrls })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to add URL.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error adding extra URL.');
+            }
+        }
+
+        async function removeExtraUrl(webId, urlIndex) {
+            if (!confirm('Remove this extra URL?')) return;
+
+            try {
+                // Fetch current web data
+                const websRes = await fetch('/api/webs', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (!websRes.ok) return alert('Failed to fetch web data.');
+                const webs = await websRes.json();
+                const web = webs.find(w => w.id === webId);
+                if (!web) return alert('Web connection not found.');
+
+                const currentExtraUrls = web.extraUrls || [];
+                currentExtraUrls.splice(urlIndex, 1);
+
+                const res = await fetch(`/api/webs/${webId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ extraUrls: currentExtraUrls })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to remove URL.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error removing extra URL.');
             }
         }
     </script>
