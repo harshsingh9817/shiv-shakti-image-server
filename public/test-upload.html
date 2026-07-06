@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test File Upload</title>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            padding: 2rem; 
+            background: #121212; 
+            color: #ffffff; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            background: rgba(255, 255, 255, 0.05); 
+            padding: 2rem; 
+            border-radius: 16px; 
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            max-width: 400px; 
+        }
+        h2 { margin-top: 0; text-align: center; color: #4ade80; }
+        input[type="file"] { 
+            width: 100%; 
+            padding: 10px; 
+            margin: 15px 0; 
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-sizing: border-box;
+            color: white;
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: none; 
+            background: #2563eb; 
+            color: white; 
+            cursor: pointer; 
+            font-weight: 600; 
+            transition: background 0.3s;
+        }
+        button:hover { background: #1d4ed8; }
+        #result { 
+            margin-top: 20px; 
+            padding: 15px; 
+            border-radius: 8px; 
+            display: none; 
+            word-break: break-all;
+            font-size: 0.9rem;
+        }
+        .success { background: rgba(22, 160, 133, 0.2); border: 1px solid #16a085; color: #4ade80; }
+        .error { background: rgba(192, 57, 43, 0.2); border: 1px solid #c0392b; color: #f87171; }
+        a { color: #60a5fa; text-decoration: none; font-weight: bold; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Local Upload Test</h2>
+        <p style="text-align: center; color: #9ca3af; font-size: 0.9rem; margin-bottom: 20px;">
+            Select a file to upload to your local Telegram server.
+        </p>
+        <form id="uploadForm">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 0.85rem; margin-bottom: 5px; color: #9ca3af; text-align: left;">Select Web App (Optional)</label>
+                <select id="webIdSelect" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: white; outline: none;">
+                    <option value="">Default (Global Channel)</option>
+                </select>
+            </div>
+            <input type="file" id="fileInput" required>
+            <button type="submit" id="submitBtn">Upload to Telegram</button>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Load Web Connections dropdown
+        async function loadWebs() {
+            try {
+                const res = await fetch('http://localhost:3000/api/webs', {
+                    headers: { 'Authorization': 'admin-auth-token-xyz' }
+                });
+                if (res.ok) {
+                    const webs = await res.json();
+                    const select = document.getElementById('webIdSelect');
+                    webs.forEach(web => {
+                        const opt = document.createElement('option');
+                        opt.value = web.id;
+                        opt.textContent = web.name;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load webs:", err);
+            }
+        }
+        loadWebs();
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('result');
+            const submitBtn = document.getElementById('submitBtn');
+            const webId = document.getElementById('webIdSelect').value;
+            
+            if (!fileInput.files.length) {
+                alert('Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = '';
+            resultDiv.innerText = 'Uploading to server... please wait.';
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.7';
+
+            try {
+                const uploadUrl = webId ? `http://localhost:3000/api/upload?webId=${webId}` : 'http://localhost:3000/api/upload';
+                const response = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'admin-auth-token-xyz'
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>Success!</strong><br><br>
+                        <strong>Private Access Link:</strong><br>
+                        <a href="${data.privateLink}" target="_blank">${data.privateLink}</a><br><br>
+                        <strong>Telegram Raw Link:</strong><br>
+                        <a href="${data.telegramLink}" target="_blank">${data.telegramLink}</a>
+                    `;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `❌ <strong>Error:</strong><br>${data.error || 'Upload failed'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `❌ <strong>Network Error:</strong><br>Make sure your Node server (server.js) is running. <br><br>Details: ${error.message}`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                fileInput.value = ''; // Reset file input
+            }
+        });
+    </script>
+</body>
+</html>

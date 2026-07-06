@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Image Showcase & Implementation</title>
+    <!-- Google Fonts & Ionicons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    
+    <style>
+        :root {
+            --bg: #09090b;
+            --primary: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --accent: #ec4899;
+            --text: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --glass-bg: rgba(24, 24, 27, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.1), transparent 40%),
+                        radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.08), transparent 40%),
+                        var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1.2fr 1.5fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #fff 30%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            box-sizing: border-box;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .image-preview-box {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px dashed var(--glass-border);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 250px;
+            max-height: 400px;
+            overflow: hidden;
+            margin-top: 1rem;
+            position: relative;
+        }
+
+        .image-preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .placeholder-text {
+            color: var(--text-muted);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .placeholder-text ion-icon {
+            font-size: 2.5rem;
+            color: var(--primary);
+        }
+
+        .code-box {
+            background: #020205;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: #a7f3d0; /* Emerald green tint */
+            position: relative;
+        }
+
+        .code-box pre {
+            margin: 0;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+
+        .badge-secure {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .copy-code-btn {
+            position: absolute;
+            right: 0.5rem;
+            top: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s;
+        }
+
+        .copy-code-btn:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Interactive Tester Panel -->
+        <div class="glass-panel">
+            <h2><ion-icon name="shield-checkmark-outline" style="color: var(--success);"></ion-icon> Secure Tester</h2>
+            <p>Verify that your files can only be accessed using your unique Web Connection's Security Key.</p>
+            
+            <div class="form-group">
+                <label>File Record ID</label>
+                <input type="text" id="recordIdInput" placeholder="e.g. rec_1781139792029">
+            </div>
+            
+            <div class="form-group">
+                <label>Security Key</label>
+                <input type="text" id="secKeyInput" placeholder="e.g. sec_xyz123abc">
+            </div>
+            
+            <button class="btn" onclick="loadSecureImage()"><ion-icon name="image-outline"></ion-icon> Load Image</button>
+            
+            <div class="image-preview-box" id="previewBox">
+                <div class="placeholder-text" id="placeholder">
+                    <ion-icon name="cloud-download-outline"></ion-icon>
+                    <span>Image will be displayed here securely.</span>
+                </div>
+                <img id="secureImage" src="" alt="Secure Image Content">
+            </div>
+        </div>
+        
+        <!-- Integration & Guide Panel -->
+        <div class="glass-panel" style="justify-content: flex-start;">
+            <h2><ion-icon name="code-slash-outline" style="color: var(--primary);"></ion-icon> Integration Guide</h2>
+            <p>
+                To keep your file links safe and private from unauthorized users, you must load images via the backend secure streaming route.
+            </p>
+            
+            <span class="badge badge-secure"><ion-icon name="lock-closed" style="vertical-align: middle;"></ion-icon> Secure Method</span>
+            <p style="margin-bottom: 0.5rem;">Use this code snippet in your website. Only your web domain with the matching key can retrieve these images:</p>
+            
+            <div class="code-box">
+                <button class="copy-code-btn" onclick="copySnippet()"><ion-icon name="copy-outline"></ion-icon> Copy</button>
+                <pre id="snippetCode"><code>&lt;!-- Include this in your website --&gt;
+&lt;img 
+  src="http://localhost:3000/api/image/YOUR_FILE_ID?key=YOUR_SECURITY_KEY" 
+  alt="Secure Website Resource"
+  style="max-width: 100%; border-radius: 8px;"
+/&gt;</code></pre>
+            </div>
+            
+            <h3 style="margin-top: 1.5rem; font-size: 1rem; margin-bottom: 0.5rem; font-weight: 600;">How it works:</h3>
+            <ul style="color: var(--text-muted); font-size: 0.85rem; padding-left: 1.25rem; margin: 0; line-height: 1.6;">
+                <li>The browser makes a request directly to the secure stream.</li>
+                <li>The server validates the security key match.</li>
+                <li>The server performs a Referer origin match checks.</li>
+                <li>If validation succeeds, the server fetches the media from Telegram on-the-fly and streams it to the page without ever exposing Telegram URLs.</li>
+            </ul>
+        </div>
+        
+    </div>
+
+    <script>
+        function loadSecureImage() {
+            const recordId = document.getElementById('recordIdInput').value.trim();
+            const key = document.getElementById('secKeyInput').value.trim();
+            const img = document.getElementById('secureImage');
+            const placeholder = document.getElementById('placeholder');
+            
+            if (!recordId || !key) {
+                alert('Please enter both the Record ID and Security Key!');
+                return;
+            }
+
+            placeholder.innerHTML = `<ion-icon name="sync-outline" style="animation: spin 1s linear infinite;"></ion-icon><span>Streaming image securely from Telegram...</span>`;
+            
+            // Add a style block for the rotating animation if not present
+            if (!document.getElementById('spinStyle')) {
+                const style = document.createElement('style');
+                style.id = 'spinStyle';
+                style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
+                document.head.appendChild(style);
+            }
+
+            const secureUrl = `http://localhost:3000/api/image/${recordId}?key=${key}`;
+            
+            // Setup image loading event handlers
+            img.onload = function() {
+                placeholder.style.display = 'none';
+                img.style.display = 'block';
+            };
+
+            img.onerror = function() {
+                img.style.display = 'none';
+                placeholder.style.display = 'flex';
+                placeholder.innerHTML = `<ion-icon name="alert-circle-outline" style="color: var(--danger);"></ion-icon><span style="color: var(--danger);">Failed to load secure image.<br>Check console, security key, or domain access rights.</span>`;
+            };
+
+            // Trigger the secure image source request
+            img.src = secureUrl;
+        }
+
+        function copySnippet() {
+            const codeText = document.getElementById('snippetCode').innerText;
+            navigator.clipboard.writeText(codeText);
+            alert('Code snippet copied to clipboard!');
+        }
+    </script>
+</body>
+</html>
