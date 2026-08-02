@@ -342,6 +342,48 @@ THE IMAGE URL FORMAT:
   }
 
 
+
+================================================================================
+  6.1 FULL FLUTTER / ANDROID CODE EXAMPLES (Mobile Apps)
+================================================================================
+
+For Mobile App Developers (Flutter / Android / iOS):
+Since mobile apps do not run on a specific domain, the server's "Referer check" will fail 
+by default if you don't supply the key. 
+To authenticate securely from a mobile app, you MUST pass your Security Key in the URL.
+
+---------- HOW TO LOAD SECURE IMAGES & VIDEOS IN FLUTTER ----------
+
+  import 'package:flutter/material.dart';
+
+  class SecureMediaViewer extends StatelessWidget {
+    final String recordId;
+    final String serverUrl = "https://your-server.com";
+    final String securityKey = "sec_a8b3c9d2e1f4g5h6"; // From Admin Portal
+
+    const SecureMediaViewer({Key? key, required this.recordId}) : super(key: key);
+
+    @override
+    Widget build(BuildContext context) {
+      final mediaUrl = "$serverUrl/api/image/$recordId?key=$securityKey";
+      
+      // For Images:
+      return Image.network(mediaUrl);
+      
+      // Note: For Videos, use the video_player package and pass the EXACT SAME mediaUrl.
+      // The server fully supports HTTP Range requests, meaning video_player will 
+      // automatically stream and buffer the video in chunks without crashing your app!
+    }
+  }
+
+---------- HOW TO VIEW PDF FILES IN FLUTTER ----------
+
+For PDFs, pass the exact same URL to a Flutter PDF viewer package (like syncfusion_flutter_pdfviewer):
+
+  // Inside your Widget build:
+  return SfPdfViewer.network("$serverUrl/api/image/$recordId?key=$securityKey");
+
+
 ================================================================================
   7. SESSION SYSTEM — HOW IT WORKS
 ================================================================================
