@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shiv Shakti Storage Admin</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Ionicons for beautiful icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div class="glass-panel login-box">
+            <h2><span style="color:var(--primary)">System</span> Access</h2>
+            <div class="form-group">
+                <input type="password" id="passwordInput" placeholder="Enter Secure Admin Key">
+            </div>
+            <button onclick="attemptLogin()" class="btn btn-primary" style="width: 100%;">
+                <ion-icon name="key-outline"></ion-icon> Authenticate
+            </button>
+            <p id="loginError" style="color: var(--danger); margin-top: 1rem; font-size: 0.9rem; display: none;">Invalid credentials.</p>
+        </div>
+    </div>
+
+    <!-- Main App Layout -->
+    <div id="mainApp" class="flex hidden" style="width: 100%;">
+        
+        <!-- Sidebar -->
+        <aside>
+            <div class="brand">
+                <ion-icon name="cloud-done"></ion-icon>
+                <span>Storage Admin</span>
+            </div>
+            <nav class="nav-menu">
+                <a onclick="switchTab('dashboard')" class="nav-item active" id="nav-dashboard">
+                    <ion-icon name="grid-outline"></ion-icon> Dashboard
+                </a>
+                <a onclick="switchTab('connections')" class="nav-item" id="nav-connections">
+                    <ion-icon name="git-network-outline"></ion-icon> Connections
+                </a>
+                <a onclick="switchTab('database')" class="nav-item" id="nav-database">
+                    <ion-icon name="server-outline"></ion-icon> Database
+                </a>
+                <a onclick="switchTab('settings')" class="nav-item" id="nav-settings">
+                    <ion-icon name="settings-outline"></ion-icon> Settings
+                </a>
+                <a onclick="switchTab('logs')" class="nav-item" id="nav-logs">
+                    <ion-icon name="list-outline"></ion-icon> Logs
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Content Area -->
+        <main>
+            
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <h1>Overview</h1>
+                <div class="grid stats-grid">
+                    <div class="glass-panel stat-card">
+                        <div class="stat-title">Transmission Today</div>
+                        <div class="stat-value" style="color: var(--primary);" id="stat-transmission">0.00 <span style="font-size: 1rem;">MB</span></div>
+                    </div>
+                    <div class="glass-panel stat-card">
+                        <div class="stat-title">Connected Webs</div>
+                        <div class="stat-value" style="color: var(--success);" id="stat-webs">0</div>
+                    </div>
+                    <div class="glass-panel stat-card">
+                        <div class="stat-title">Incoming Requests</div>
+                        <div class="stat-value" style="color: var(--warning);" id="stat-incoming">0</div>
+                    </div>
+                    <div class="glass-panel stat-card">
+                        <div class="stat-title">Outgoing Requests</div>
+                        <div class="stat-value" style="color: var(--secondary);" id="stat-outgoing">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connections Tab -->
+            <div id="connections" class="tab-content hidden">
+                <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h1>Web Connections & Sessions</h1>
+                    <div class="flex" style="gap: 1rem;">
+                        <button class="btn btn-primary" onclick="toggleAddWebForm()"><ion-icon name="add-outline"></ion-icon> Add Web</button>
+                        <button class="btn btn-primary" style="background: linear-gradient(135deg, var(--secondary), #db2777);" onclick="toggleAddSessionForm()"><ion-icon name="key-outline"></ion-icon> Add Session</button>
+                    </div>
+                </div>
+
+                <!-- Add Web Form (Hidden by default) -->
+                <div id="addWebFormPanel" class="glass-panel hidden" style="padding: 2rem; margin-bottom: 2rem;">
+                    <h2>Add Web Connection</h2>
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Web Name</label>
+                            <input type="text" id="webNameInput" placeholder="e.g. My Website 1">
+                        </div>
+                        <div class="form-group">
+                            <label>Web URL</label>
+                            <input type="text" id="webUrlInput" placeholder="https://example.com">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Channel ID or Link</label>
+                        <input type="text" id="webChannelInput" placeholder="Where the web data/images will be uploaded...">
+                    </div>
+                    <div class="form-group">
+                        <label>Select Session String</label>
+                        <select id="webSessionsInput">
+                            <option value="main">Main Session</option>
+                            <!-- Secondary sessions will load here -->
+                        </select>
+                    </div>
+                    <div class="flex" style="gap: 1rem;">
+                        <button class="btn btn-primary" onclick="addWebConnection()"><ion-icon name="rocket-outline"></ion-icon> Save Connection</button>
+                        <button class="btn btn-danger" onclick="toggleAddWebForm()">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Add Session Form (Hidden by default) -->
+                <div id="addSessionFormPanel" class="glass-panel hidden" style="padding: 2rem; margin-bottom: 2rem;">
+                    <h2>Add Secondary Session</h2>
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Session Name</label>
+                            <input type="text" id="secSessionNameInput" placeholder="e.g. Backup Session 1">
+                        </div>
+                        <div class="form-group">
+                            <label>Session String</label>
+                            <input type="text" id="secSessionInput" placeholder="Paste session string here...">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Webs Allowed (per session)</label>
+                        <input type="number" id="secSessionMaxWebsInput" placeholder="Default: 3" min="1" max="20" style="max-width: 200px;">
+                        <small style="color: var(--text-muted); display: block; margin-top: 0.5rem;">How many web connections this session can handle. Session will be locked once limit is reached.</small>
+                    </div>
+                    <div class="flex" style="gap: 1rem;">
+                        <button class="btn btn-primary" onclick="addSecondarySession()"><ion-icon name="add-outline"></ion-icon> Save Session</button>
+                        <button class="btn btn-danger" onclick="toggleAddSessionForm()">Cancel</button>
+                    </div>
+                </div>
+                
+                <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
+                    <h2>Active Web Links</h2>
+                    <div class="list-container mt-4" id="webConnectionsList">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 2rem;">
+                    <h2>Secondary Session Strings List</h2>
+                    <div class="list-container mt-4" id="secSessionList">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Tab -->
+            <div id="database" class="tab-content hidden">
+                <h1>Database Records</h1>
+                <div class="glass-panel" style="padding: 2rem;">
+                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Showing generated file links stored in Telegram. Actual files (images/videos up to 1GB+) are kept safely as encoded text or direct file messages.</p>
+                    
+                    <div class="list-container" id="recordsList">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content hidden">
+                <h1>Server Settings</h1>
+                
+                <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem; border-left: 4px solid var(--danger);">
+                    <h2 style="color: var(--danger);"><ion-icon name="warning-outline"></ion-icon> Danger Zone: Clear Database</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 1rem;">This will permanently delete ALL images from your Render server and your Telegram channel. This action cannot be undone.</p>
+                    <button class="btn btn-danger" onclick="clearDatabase()"><ion-icon name="trash-bin-outline"></ion-icon> Wipe All Data</button>
+                </div>
+
+                <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
+                    <h2>Server Control</h2>
+                    <div class="form-group">
+                        <label>Close Server for (Minutes)</label>
+                        <div class="flex" style="gap: 1rem;">
+                            <input type="number" placeholder="e.g. 60" style="max-width: 200px;">
+                            <button class="btn btn-danger"><ion-icon name="power-outline"></ion-icon> Pause Server</button>
+                        </div>
+                        <small style="color: var(--text-muted); display: block; margin-top: 0.5rem;">Server will automatically resume after the specified time.</small>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
+                    <h2>Web Storage Limits</h2>
+                    <div class="form-group">
+                        <label>Select Web</label>
+                        <select style="margin-bottom: 1rem;">
+                            <option>My Website 1</option>
+                        </select>
+                        <label>Storage Limit (MB)</label>
+                        <div class="flex" style="gap: 1rem;">
+                            <input type="number" placeholder="e.g. 5000" style="max-width: 200px;">
+                            <button class="btn btn-primary">Apply Limit</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-panel" style="padding: 2rem;">
+                    <h2>Admin Security</h2>
+                    <div class="form-group">
+                        <label>New Admin Password</label>
+                        <input type="password" placeholder="Enter new password">
+                    </div>
+                    <button class="btn btn-primary">Update Credentials</button>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="logs" class="tab-content hidden">
+                <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h1>Request & Response Logs</h1>
+                    <button class="btn btn-danger" style="padding: 0.5rem 1rem;" onclick="clearLogs()"><ion-icon name="trash-outline"></ion-icon> Clear Logs</button>
+                </div>
+                <div class="glass-panel" style="padding: 2rem;">
+                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Live stream of server incoming requests and response payloads.</p>
+                    <div class="list-container" id="logsList" style="max-height: 500px; overflow-y: auto;">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        let authToken = "";
+
+        async function attemptLogin() {
+            const password = document.getElementById('passwordInput').value;
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                authToken = data.token;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainApp').classList.remove('hidden');
+                loadData();
+            } else {
+                const err = document.getElementById('loginError');
+                err.style.display = 'block';
+                setTimeout(() => err.style.display = 'none', 3000);
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            const activeTab = document.getElementById(tabId);
+            activeTab.classList.remove('hidden');
+            setTimeout(() => activeTab.classList.add('active'), 10);
+            document.getElementById('nav-' + tabId).classList.add('active');
+            
+            loadData();
+        }
+
+        async function loadData() {
+            if (!authToken) return;
+
+            try {
+                // 1. Fetch Stats
+                const statsRes = await fetch('/api/stats', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (statsRes.ok) {
+                    const stats = await statsRes.json();
+                    document.getElementById('stat-transmission').innerHTML = `${stats.transmissionToday} <span style="font-size: 1rem;">MB</span>`;
+                    document.getElementById('stat-webs').innerText = stats.connectedWebs;
+                    document.getElementById('stat-incoming').innerText = stats.incomingRequests;
+                    document.getElementById('stat-outgoing').innerText = stats.outgoingRequests;
+                }
+
+                // 2. Fetch Database Records
+                const recordsRes = await fetch('/api/records', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (recordsRes.ok) {
+                    const records = await recordsRes.json();
+                    const recordsList = document.getElementById('recordsList');
+                    if (!records || records.length === 0) {
+                        recordsList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No records found. Upload a file to see it here!</p>`;
+                    } else {
+                        recordsList.innerHTML = records.map(rec => {
+                            const sizeMB = (rec.size / (1024 * 1024)).toFixed(2);
+                            const formattedDate = new Date(rec.timestamp).toLocaleString();
+                            const secureLink = `/view/${rec.id}`;
+                            return `
+                                <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 1rem;">
+                                    <div class="flex" style="justify-content: space-between; align-items: center; width: 100%;">
+                                        <div>
+                                            <h3 style="margin-bottom: 0.25rem; font-size: 1rem;">${rec.filename}</h3>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                                Uploaded: ${formattedDate}
+                                            </div>
+                                        </div>
+                                        <span class="badge" style="background: rgba(255,255,255,0.1); color: #fff;">${sizeMB} MB</span>
+                                    </div>
+                                    <div class="flex" style="gap: 0.5rem; flex-wrap: wrap;">
+                                        <a href="${secureLink}" target="_blank" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"><ion-icon name="shield-checkmark-outline"></ion-icon> View Secure (Local)</a>
+                                        <a href="${rec.telegramLink}" target="_blank" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: var(--glass-border); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"><ion-icon name="logo-telegram"></ion-icon> Raw Telegram Link</a>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                // 3. Fetch Web Connections
+                const websRes = await fetch('/api/webs', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (websRes.ok) {
+                    const webs = await websRes.json();
+                    const webConnectionsList = document.getElementById('webConnectionsList');
+                    if (!webs || webs.length === 0) {
+                        webConnectionsList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 1rem;">No web connections configured.</p>`;
+                    } else {
+                        webConnectionsList.innerHTML = webs.map(web => {
+                            const extraUrlsHtml = (web.extraUrls && web.extraUrls.length > 0)
+                                ? web.extraUrls.map((eu, idx) => `
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                                        <ion-icon name="link-outline" style="color: var(--primary); font-size: 0.85rem; flex-shrink: 0;"></ion-icon>
+                                        <code style="font-size: 0.8rem; color: var(--text-muted); flex-grow: 1; word-break: break-all;">${eu}</code>
+                                        <button class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; background: rgba(239,68,68,0.15); color: var(--danger); display: flex; align-items: center; gap: 3px;" onclick="removeExtraUrl('${web.id}', ${idx})">
+                                            <ion-icon name="close-outline"></ion-icon> Remove
+                                        </button>
+                                    </div>
+                                `).join('')
+                                : '';
+
+                            return `
+                            <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 1rem;" id="web-item-${web.id}">
+                                <div class="flex" style="justify-content: space-between; align-items: center; width: 100%;">
+                                    <div>
+                                        <h3 style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 8px;" id="web-name-display-${web.id}">
+                                            ${web.name} 
+                                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">ID: ${web.id}</span>
+                                            <button class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; background: rgba(99,102,241,0.15); color: var(--primary); display: inline-flex; align-items: center; gap: 3px;" onclick="showEditName('${web.id}', '${web.name.replace(/'/g, "\\'")}')">
+                                                <ion-icon name="pencil-outline"></ion-icon> Edit
+                                            </button>
+                                        </h3>
+                                        <div id="web-name-edit-${web.id}" style="display: none; margin-bottom: 0.5rem;">
+                                            <div class="flex" style="gap: 0.5rem; align-items: center;">
+                                                <input type="text" id="web-name-input-${web.id}" style="padding: 0.4rem 0.75rem; font-size: 0.85rem; max-width: 250px; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: #fff;" value="${web.name.replace(/"/g, '&quot;')}">
+                                                <button class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="saveEditName('${web.id}')">Save</button>
+                                                <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; background: var(--glass-border);" onclick="cancelEditName('${web.id}')">Cancel</button>
+                                            </div>
+                                        </div>
+                                        <p style="font-size: 0.85rem; color: var(--text-muted);">
+                                            URL: ${web.url} | Channel: ${web.channel || 'Not Set'} | Session: ${web.sessionName || 'Main Session'}
+                                        </p>
+                                    </div>
+                                    <div class="flex" style="gap: 0.75rem; align-items: center;">
+                                        <span class="badge active">Active</span>
+                                        <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; display: flex; align-items: center; gap: 4px;" onclick="toggleAddExtraUrl('${web.id}')">
+                                            <ion-icon name="add-outline"></ion-icon> Add URL
+                                        </button>
+                                        <button class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;" onclick="revokeWebConnection('${web.id}', '${web.name.replace(/'/g, "\\'")}')">
+                                            <ion-icon name="ban-outline"></ion-icon> Revoke
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Add Extra URL inline form (hidden by default) -->
+                                <div id="add-url-form-${web.id}" style="display: none; padding: 0.75rem 1rem; background: rgba(99,102,241,0.05); border-radius: 8px; border: 1px solid rgba(99,102,241,0.15);">
+                                    <div class="flex" style="gap: 0.5rem; align-items: center;">
+                                        <input type="text" id="extra-url-input-${web.id}" placeholder="https://another-domain.com" style="padding: 0.4rem 0.75rem; font-size: 0.85rem; flex-grow: 1; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: #fff;">
+                                        <button class="btn btn-primary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;" onclick="addExtraUrl('${web.id}')">
+                                            <ion-icon name="checkmark-outline"></ion-icon> Add
+                                        </button>
+                                        <button class="btn" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; background: var(--glass-border);" onclick="toggleAddExtraUrl('${web.id}')">Cancel</button>
+                                    </div>
+                                </div>
+
+                                ${(web.extraUrls && web.extraUrls.length > 0) ? `
+                                <div style="padding: 0.5rem 0;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.4rem; display: block;">Extra Connected URLs:</span>
+                                    <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                                        ${extraUrlsHtml}
+                                    </div>
+                                </div>
+                                ` : ''}
+
+                                <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Security Key:</span>
+                                    <code style="font-family: monospace; color: var(--primary); font-size: 0.85rem; font-weight: bold; flex-grow: 1; word-break: break-all;">${web.securityKey || 'Not Available'}</code>
+                                    <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--glass-border); display: flex; align-items: center; gap: 4px;" onclick="navigator.clipboard.writeText('${web.id || ''}'); alert('Copied Web ID!')">
+                                        <ion-icon name="copy-outline"></ion-icon> Copy ID
+                                    </button>
+                                    <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--glass-border); display: flex; align-items: center; gap: 4px;" onclick="navigator.clipboard.writeText('${web.securityKey || ''}'); alert('Copied Security Key!')">
+                                        <ion-icon name="copy-outline"></ion-icon> Copy Key
+                                    </button>
+                                </div>
+                            </div>
+                        `}).join('');
+                    }
+                }
+
+                // 4. Fetch Secondary Sessions
+                const sessionsRes = await fetch('/api/sessions', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (sessionsRes.ok) {
+                    const sessions = await sessionsRes.json();
+                    const secSessionList = document.getElementById('secSessionList');
+                    const webSessionsSelect = document.getElementById('webSessionsInput');
+                    
+                    // Populate secondary sessions list
+                    if (!sessions || sessions.length === 0) {
+                        secSessionList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 1rem;">No secondary sessions configured.</p>`;
+                    } else {
+                        secSessionList.innerHTML = sessions.map(sess => {
+                            const maxW = sess.maxWebs || 3;
+                            return `
+                            <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
+                                <div class="flex" style="justify-content: space-between; align-items: center; width: 100%;">
+                                    <div>
+                                        <h3 style="margin-bottom: 0.25rem;">${sess.name}</h3>
+                                        <p style="font-size: 0.85rem; color: var(--text-muted);">Status: ${sess.status} | Key: ${sess.key.substring(0, 10)}...</p>
+                                    </div>
+                                    <div class="flex" style="gap: 0.75rem; align-items: center;">
+                                        <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--primary); font-size: 0.8rem;">Max: ${maxW} webs</span>
+                                        <button class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="removeSecondarySession('${sess.id}')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `}).join('');
+                    }
+
+                    // Populate Web connection session selection dropdown dynamically
+                    let sessionOptionsHtml = `<option value="main">Main Session</option>`;
+                    if (sessions && sessions.length > 0) {
+                        sessionOptionsHtml += sessions.map(sess => `
+                            <option value="${sess.key}">${sess.name}</option>
+                        `).join('');
+                    }
+                    webSessionsSelect.innerHTML = sessionOptionsHtml;
+                }
+
+                // 5. Fetch Request Logs
+                const logsRes = await fetch('/api/logs', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (logsRes.ok) {
+                    const logs = await logsRes.json();
+                    const logsList = document.getElementById('logsList');
+                    if (!logs || logs.length === 0) {
+                        logsList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No request logs recorded yet.</p>`;
+                    } else {
+                        logsList.innerHTML = logs.reverse().map(log => `
+                            <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 1rem 0;">
+                                <div class="flex" style="justify-content: space-between; width: 100%; font-size: 0.85rem;">
+                                    <div class="flex" style="gap: 0.5rem; align-items: center;">
+                                        <span class="badge" style="background: ${log.method === 'POST' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; color: ${log.method === 'POST' ? '#3b82f6' : '#10b981'};">${log.method}</span>
+                                        <code style="color: #fff; font-weight: 600;">${log.path}</code>
+                                    </div>
+                                    <span style="color: var(--text-muted);">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                    <strong>Req Body:</strong> <code style="font-family: monospace; background: rgba(0,0,0,0.2); padding: 2px 4px; border-radius: 4px;">${log.reqBody}</code>
+                                </div>
+                                <div class="flex" style="justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);">
+                                    <span><strong>Status:</strong> <span style="color: ${log.status >= 400 ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;">${log.status}</span></span>
+                                    <span><strong>Res Body:</strong> <code style="font-family: monospace; background: rgba(0,0,0,0.2); padding: 2px 4px; border-radius: 4px; max-width: 250px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;">${log.resBody}</code></span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+            } catch (err) {
+                console.error("Error loading server data:", err);
+            }
+        }
+
+        function toggleAddWebForm() {
+            const panel = document.getElementById('addWebFormPanel');
+            panel.classList.toggle('hidden');
+            // Hide other form if open
+            document.getElementById('addSessionFormPanel').classList.add('hidden');
+        }
+
+        function toggleAddSessionForm() {
+            const panel = document.getElementById('addSessionFormPanel');
+            panel.classList.toggle('hidden');
+            // Hide other form if open
+            document.getElementById('addWebFormPanel').classList.add('hidden');
+        }
+
+        async function addSecondarySession() {
+            const nameInput = document.getElementById('secSessionNameInput');
+            const keyInput = document.getElementById('secSessionInput');
+            const maxWebsInput = document.getElementById('secSessionMaxWebsInput');
+            const name = nameInput.value.trim();
+            const sessionString = keyInput.value.trim();
+            const maxWebs = maxWebsInput.value.trim() || '3';
+            if (!sessionString) return alert("Please enter the session string");
+
+            try {
+                const res = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ name, sessionString, maxWebs })
+                });
+
+                if (res.ok) {
+                    nameInput.value = "";
+                    keyInput.value = "";
+                    maxWebsInput.value = "";
+                    toggleAddSessionForm();
+                    loadData();
+                } else {
+                    alert("Failed to add session.");
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function removeSecondarySession(id) {
+            if (!confirm("Are you sure you want to remove this session?")) return;
+            try {
+                const res = await fetch(`/api/sessions/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authToken }
+                });
+                if (res.ok) {
+                    loadData();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function addWebConnection() {
+            const name = document.getElementById('webNameInput').value.trim();
+            const url = document.getElementById('webUrlInput').value.trim();
+            const channel = document.getElementById('webChannelInput').value.trim();
+            const sessionSelect = document.getElementById('webSessionsInput');
+            const session = sessionSelect.value;
+            const sessionName = sessionSelect.options[sessionSelect.selectedIndex].text;
+            
+            if (!name || !url) return alert('Please enter Web Name and URL');
+
+            try {
+                const res = await fetch('/api/webs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ name, url, channel, session, sessionName })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    document.getElementById('webNameInput').value = "";
+                    document.getElementById('webUrlInput').value = "";
+                    document.getElementById('webChannelInput').value = "";
+                    toggleAddWebForm();
+                    loadData();
+                } else if (res.status === 409) {
+                    alert(data.error || 'Session is already occupied — maximum webs reached.');
+                } else {
+                    alert(data.error || "Failed to add web connection.");
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function removeWebConnection(id) {
+            if (!confirm("Are you sure you want to remove this web connection?")) return;
+            try {
+                const res = await fetch(`/api/webs/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authToken }
+                });
+                if (res.ok) {
+                    loadData();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function clearLogs() {
+            if (!confirm("Are you sure you want to clear all server logs?")) return;
+            try {
+                const res = await fetch('/api/logs/clear', {
+                    method: 'POST',
+                    headers: { 'Authorization': authToken }
+                });
+                if (res.ok) {
+                    loadData();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function clearDatabase() {
+            const confirmText = prompt("WARNING: This will permanently delete ALL images and records from both your Render server and Telegram channel.\n\nType 'DELETE' in all caps to confirm this action.");
+            if (confirmText !== "DELETE") {
+                alert("Action cancelled.");
+                return;
+            }
+
+            try {
+                // Show loading state (could take a while if many messages)
+                document.body.style.cursor = 'wait';
+                const res = await fetch('/api/admin/clear-db', {
+                    method: 'POST',
+                    headers: { 'Authorization': authToken }
+                });
+                
+                document.body.style.cursor = 'default';
+                
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert(data.message || "Database wiped successfully.");
+                    loadData(); // Reload UI to show 0 records
+                } else {
+                    alert(data.error || "Failed to clear database.");
+                }
+            } catch (err) {
+                document.body.style.cursor = 'default';
+                console.error(err);
+                alert("An error occurred while clearing the database.");
+            }
+        }
+
+        // ==========================================
+        // EDIT CONNECTION NAME
+        // ==========================================
+        function showEditName(webId, currentName) {
+            document.getElementById('web-name-display-' + webId).style.display = 'none';
+            const editDiv = document.getElementById('web-name-edit-' + webId);
+            editDiv.style.display = 'block';
+            document.getElementById('web-name-input-' + webId).value = currentName;
+            document.getElementById('web-name-input-' + webId).focus();
+        }
+
+        function cancelEditName(webId) {
+            document.getElementById('web-name-display-' + webId).style.display = 'flex';
+            document.getElementById('web-name-edit-' + webId).style.display = 'none';
+        }
+
+        async function saveEditName(webId) {
+            const newName = document.getElementById('web-name-input-' + webId).value.trim();
+            if (!newName) return alert('Name cannot be empty.');
+
+            try {
+                const res = await fetch(`/api/webs/${webId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ name: newName })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to update name.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error updating connection name.');
+            }
+        }
+
+        // ==========================================
+        // REVOKE (DELETE) CONNECTION
+        // ==========================================
+        async function revokeWebConnection(id, name) {
+            if (!confirm(`Are you sure you want to revoke the connection "${name}"?\n\nThis will permanently remove this web connection and its security key.`)) return;
+            try {
+                const res = await fetch(`/api/webs/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authToken }
+                });
+                if (res.ok) {
+                    loadData();
+                } else {
+                    alert('Failed to revoke connection.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error revoking connection.');
+            }
+        }
+
+        // ==========================================
+        // ADD / REMOVE EXTRA URLs
+        // ==========================================
+        function toggleAddExtraUrl(webId) {
+            const form = document.getElementById('add-url-form-' + webId);
+            if (form.style.display === 'none') {
+                form.style.display = 'block';
+                document.getElementById('extra-url-input-' + webId).value = '';
+                document.getElementById('extra-url-input-' + webId).focus();
+            } else {
+                form.style.display = 'none';
+            }
+        }
+
+        async function addExtraUrl(webId) {
+            const input = document.getElementById('extra-url-input-' + webId);
+            const newUrl = input.value.trim();
+            if (!newUrl) return alert('Please enter a URL.');
+
+            try {
+                // First fetch current web data to get existing extra urls
+                const websRes = await fetch('/api/webs', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (!websRes.ok) return alert('Failed to fetch web data.');
+                const webs = await websRes.json();
+                const web = webs.find(w => w.id === webId);
+                if (!web) return alert('Web connection not found.');
+
+                const currentExtraUrls = web.extraUrls || [];
+                currentExtraUrls.push(newUrl);
+
+                const res = await fetch(`/api/webs/${webId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ extraUrls: currentExtraUrls })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to add URL.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error adding extra URL.');
+            }
+        }
+
+        async function removeExtraUrl(webId, urlIndex) {
+            if (!confirm('Remove this extra URL?')) return;
+
+            try {
+                // Fetch current web data
+                const websRes = await fetch('/api/webs', {
+                    headers: { 'Authorization': authToken }
+                });
+                if (!websRes.ok) return alert('Failed to fetch web data.');
+                const webs = await websRes.json();
+                const web = webs.find(w => w.id === webId);
+                if (!web) return alert('Web connection not found.');
+
+                const currentExtraUrls = web.extraUrls || [];
+                currentExtraUrls.splice(urlIndex, 1);
+
+                const res = await fetch(`/api/webs/${webId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify({ extraUrls: currentExtraUrls })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to remove URL.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error removing extra URL.');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,546 @@
+================================================================================
+     SHIV SHAKTI IMAGE SERVER — FULL SETUP GUIDE FOR TSX / TS WEBSITES
+================================================================================
+
+TABLE OF CONTENTS:
+  1. What This Server Does
+  2. How Your TSX/TS Website Connects
+  3. Step-by-Step: Adding Your Website to the Portal
+  4. How to Upload Files & Get Image URLs
+  5. How to Display Secure Images in Your TSX/TS Website
+  6. Full TSX/TS Code Examples (React + Next.js)
+  7. Session System — How It Works
+  8. Session Locking — Max Webs Per Session
+  9. API Reference
+  10. Troubleshooting
+
+
+================================================================================
+  1. WHAT THIS SERVER DOES
+================================================================================
+
+This server uses Telegram as a FREE unlimited cloud storage backend.
+
+Flow:
+  Your Website  --->  Image Server  --->  Telegram Channel (stores files)
+  Your Website  <---  Image Server  <---  Telegram Channel (streams files)
+
+- Files (images, videos, documents) are uploaded TO a Telegram channel.
+- When your website needs the file, it requests it FROM the server.
+- The server fetches it from Telegram and streams it to the browser.
+- Telegram URLs are NEVER exposed to end users.
+- Each website gets a unique Security Key for access control.
+
+
+================================================================================
+  2. HOW YOUR TSX/TS WEBSITE CONNECTS
+================================================================================
+
+Your website does NOT connect directly to Telegram.
+Instead, it loads images via a simple <img> tag or fetch() call pointing
+to the Image Server's secure streaming endpoint.
+
+Connection Architecture:
+
+  [User's Browser]
+       |
+       |  <img src="https://your-server.com/api/image/rec_123?key=sec_abc" />
+       |
+       v
+  [Image Server (Node.js)]
+       |
+       |  server fetches file from Telegram using stored message ID
+       |
+       v
+  [Telegram Channel]
+       |
+       |  returns raw file bytes
+       |
+       v
+  [Image Server streams bytes back to browser]
+
+What you need from the admin portal:
+  1. Your Web Connection's Record IDs (file IDs like rec_1781139792029)
+  2. Your Web Connection's Security Key (like sec_a8b3c9d2e1f4g5h6)
+
+
+================================================================================
+  3. STEP-BY-STEP: ADDING YOUR WEBSITE TO THE PORTAL
+================================================================================
+
+STEP 1: Open the Admin Dashboard
+  - Go to: http://localhost:3000 (or your deployed server URL)
+  - Login with the admin password (default: "admin")
+
+STEP 2: Go to "Connections" tab in the sidebar
+
+STEP 3: Click "Add Web" button
+
+STEP 4: Fill in the form:
+  - Web Name:       "My React App" (any friendly name)
+  - Web URL:        "https://myapp.com" (your actual domain — used for referer check)
+  - Target Channel: "-1001234567890" (Telegram channel ID, or leave empty for global)
+  - Select Session: Choose "Main Session" or any secondary session
+
+STEP 5: Click "Save Connection"
+  - The system will generate a unique Security Key for your website
+  - Example: sec_a8b3c9d2e1f4g5h6
+  - COPY THIS KEY — you need it in your TSX/TS code
+
+STEP 6: Upload files via the admin dashboard or the /api/upload endpoint
+  - Each uploaded file gets a Record ID (e.g., rec_1781139792029)
+  - Use this Record ID + Security Key to load images in your website
+
+
+================================================================================
+  4. HOW TO UPLOAD FILES & GET IMAGE URLs
+================================================================================
+
+OPTION A: Upload from the Admin Dashboard
+  - Go to: http://localhost:3000/test-upload.html
+  - Select your Web Connection from the dropdown
+  - Pick a file and click "Upload to Telegram"
+  - You'll get:
+      Private Link:   http://localhost:3000/view/rec_1781139792029
+      Telegram Link:  https://t.me/c/3992574269/4
+
+OPTION B: Upload from your TSX/TS backend code (API call)
+
+  // TypeScript upload function
+  async function uploadFile(file: File, webId: string): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(
+      `https://your-server.com/api/upload?webId=${webId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'admin-auth-token-xyz'
+        },
+        body: formData
+      }
+    );
+
+    const data = await response.json();
+    // data.recordId = "rec_1781139792029"
+    // data.privateLink = "https://your-server.com/view/rec_1781139792029"
+    // data.telegramLink = "https://t.me/c/..."
+    
+    return data.recordId;  // Save this ID in your database!
+  }
+
+THE IMAGE URL FORMAT:
+  https://your-server.com/api/image/{RECORD_ID}?key={SECURITY_KEY}
+
+  Example:
+  https://your-server.com/api/image/rec_1781139792029?key=sec_a8b3c9d2e1f4g5h6
+
+
+================================================================================
+  5. HOW TO DISPLAY SECURE IMAGES IN YOUR TSX/TS WEBSITE
+================================================================================
+
+---------- METHOD 1: Simple <img> tag (Easiest) ----------
+
+  // In any React/Next.js component:
+
+  const SERVER_URL = "https://your-server.com";
+  const SECURITY_KEY = "sec_a8b3c9d2e1f4g5h6";  // From portal
+
+  function ProductImage({ recordId }: { recordId: string }) {
+    const imageUrl = `${SERVER_URL}/api/image/${recordId}?key=${SECURITY_KEY}`;
+    
+    return (
+      <img
+        src={imageUrl}
+        alt="Product"
+        style={{ maxWidth: '100%', borderRadius: '8px' }}
+        loading="lazy"
+      />
+    );
+  }
+
+
+---------- METHOD 2: Next.js Image component ----------
+
+  import Image from 'next/image';
+
+  const SERVER_URL = "https://your-server.com";
+  const SECURITY_KEY = "sec_a8b3c9d2e1f4g5h6";
+
+  function ProductImage({ recordId }: { recordId: string }) {
+    return (
+      <Image
+        src={`${SERVER_URL}/api/image/${recordId}?key=${SECURITY_KEY}`}
+        alt="Product"
+        width={400}
+        height={300}
+        unoptimized  // Required since it's an external dynamic source
+      />
+    );
+  }
+
+  // IMPORTANT: Add domain to next.config.js:
+  // module.exports = {
+  //   images: {
+  //     remotePatterns: [
+  //       { protocol: 'https', hostname: 'your-server.com' }
+  //     ]
+  //   }
+  // }
+
+
+---------- METHOD 3: Fetch as Blob (for download / processing) ----------
+
+  async function fetchSecureImage(recordId: string): Promise<Blob> {
+    const response = await fetch(
+      `${SERVER_URL}/api/image/${recordId}?key=${SECURITY_KEY}`
+    );
+    
+    if (!response.ok) throw new Error('Failed to load image');
+    return await response.blob();
+  }
+
+  // Usage in React component:
+  function DownloadableImage({ recordId }: { recordId: string }) {
+    const [blobUrl, setBlobUrl] = useState<string>('');
+
+    useEffect(() => {
+      fetchSecureImage(recordId).then(blob => {
+        setBlobUrl(URL.createObjectURL(blob));
+      });
+      return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+    }, [recordId]);
+
+    return blobUrl ? <img src={blobUrl} alt="Secure" /> : <p>Loading...</p>;
+  }
+
+
+================================================================================
+  6. FULL TSX/TS CODE EXAMPLES (React + Next.js)
+================================================================================
+
+---------- Example: Environment Variables (.env.local) ----------
+
+  NEXT_PUBLIC_IMAGE_SERVER_URL=https://your-server.com
+  NEXT_PUBLIC_SECURITY_KEY=sec_a8b3c9d2e1f4g5h6
+  IMAGE_SERVER_AUTH_TOKEN=admin-auth-token-xyz
+
+
+---------- Example: lib/imageServer.ts (Utility File) ----------
+
+  // lib/imageServer.ts
+
+  const SERVER_URL = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL!;
+  const SECURITY_KEY = process.env.NEXT_PUBLIC_SECURITY_KEY!;
+  const AUTH_TOKEN = process.env.IMAGE_SERVER_AUTH_TOKEN!;
+
+  // Get the secure image URL for displaying in <img> tags
+  export function getImageUrl(recordId: string): string {
+    return `${SERVER_URL}/api/image/${recordId}?key=${SECURITY_KEY}`;
+  }
+
+  // Upload a file from the server-side (API route / Server Action)
+  export async function uploadToImageServer(
+    file: Buffer,
+    filename: string,
+    webId: string
+  ): Promise<{ recordId: string; privateLink: string }> {
+    const formData = new FormData();
+    const blob = new Blob([file]);
+    formData.append('file', blob, filename);
+
+    const res = await fetch(`${SERVER_URL}/api/upload?webId=${webId}`, {
+      method: 'POST',
+      headers: { 'Authorization': AUTH_TOKEN },
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Upload failed');
+    }
+
+    return await res.json();
+  }
+
+
+---------- Example: React Component Using It ----------
+
+  // components/SecureImage.tsx
+  'use client';
+
+  import { getImageUrl } from '@/lib/imageServer';
+
+  interface SecureImageProps {
+    recordId: string;
+    alt?: string;
+    className?: string;
+    width?: number;
+    height?: number;
+  }
+
+  export default function SecureImage({
+    recordId, alt = 'Image', className, width, height
+  }: SecureImageProps) {
+    const [error, setError] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    const src = getImageUrl(recordId);
+
+    return (
+      <div className={className} style={{ position: 'relative' }}>
+        {loading && <div className="skeleton-loader" />}
+        {error ? (
+          <div className="error-placeholder">Failed to load image</div>
+        ) : (
+          <img
+            src={src}
+            alt={alt}
+            width={width}
+            height={height}
+            onLoad={() => setLoading(false)}
+            onError={() => { setError(true); setLoading(false); }}
+            style={{
+              maxWidth: '100%',
+              borderRadius: '8px',
+              display: loading ? 'none' : 'block'
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Usage:
+  // <SecureImage recordId="rec_1781139792029" alt="Product Photo" />
+
+
+---------- Example: Upload from Next.js API Route ----------
+
+  // app/api/upload-image/route.ts
+  import { uploadToImageServer } from '@/lib/imageServer';
+
+  export async function POST(request: Request) {
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return Response.json({ error: 'No file' }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const result = await uploadToImageServer(
+      buffer,
+      file.name,
+      'web_1718000000000'  // Your webId from the portal
+    );
+
+    // Save result.recordId to your database (Firestore, Prisma, etc.)
+    return Response.json({ imageId: result.recordId });
+  }
+
+
+================================================================================
+  7. SESSION SYSTEM — HOW IT WORKS
+================================================================================
+
+WHY SESSIONS EXIST:
+  Telegram has API rate limits. If you have many websites making lots of
+  requests, a single Telegram account can get throttled (FloodWaitError).
+  
+  Solution: Use multiple Telegram accounts (sessions) to distribute load.
+
+MAIN SESSION:
+  - The primary Telegram account configured in server.js
+  - Always available
+  - Default session for all web connections
+  - Has a max web limit (default: 3)
+
+SECONDARY SESSIONS:
+  - Additional Telegram accounts you generate using generate-session.js
+  - Each gets its own session string
+  - Added via the admin portal Connections > "Add Session"
+  - Each has a configurable max web limit
+
+HOW TO GENERATE A NEW SESSION STRING:
+  1. Open terminal in the project folder
+  2. Run: node generate-session.js
+  3. Enter your phone number (with country code, e.g. +91...)
+  4. Enter the OTP code you receive on Telegram
+  5. Enter 2FA password if you have one
+  6. Copy the generated session string
+  7. Go to Admin Portal > Connections > Add Session
+  8. Paste the string and set max webs
+
+ASSIGNING A SESSION TO A WEB CONNECTION:
+  When adding a web connection, you pick which session it uses.
+  The server will use THAT session's Telegram account to upload/download
+  files for that website.
+
+
+================================================================================
+  8. SESSION LOCKING — MAX WEBS PER SESSION
+================================================================================
+
+WHAT IS SESSION LOCKING?
+  Each session has a maximum number of web connections it can serve.
+  Once that limit is hit, the session is "LOCKED" — no more websites
+  can be assigned to it.
+
+DEFAULT LIMITS:
+  - Main Session:      3 webs (configurable in server.js MAIN_SESSION_MAX_WEBS)
+  - Secondary Session: 3 webs (configurable per session when adding it)
+
+WHAT HAPPENS WHEN A SESSION IS FULL:
+
+  If a user tries to add a web connection to a session that is already
+  at its maximum, the server responds with:
+
+    HTTP 409 Conflict
+    {
+      "error": "Sorry, \"Main Session\" is already occupied — maximum 3 web(s) 
+                reached. Please use a different session or remove an existing 
+                web connection first."
+    }
+
+  The dashboard will show this error as an alert popup.
+
+HOW TO CHECK SESSION USAGE:
+
+  API Endpoint: GET /api/sessions/usage
+  Headers: Authorization: admin-auth-token-xyz
+
+  Response:
+  [
+    {
+      "id": "main",
+      "name": "Main Session",
+      "maxWebs": 3,
+      "usedWebs": 2,
+      "available": 1,
+      "locked": false
+    },
+    {
+      "id": "sess_1718000000000",
+      "name": "Backup Session 1",
+      "maxWebs": 5,
+      "usedWebs": 5,
+      "available": 0,
+      "locked": true         <--- This session is LOCKED, no more webs allowed
+    }
+  ]
+
+HOW TO UNLOCK A SESSION:
+  - Remove a web connection that is using that session
+  - Or increase the maxWebs limit (requires editing db.json manually for now)
+
+EXAMPLE SCENARIO:
+  1. Main Session has maxWebs = 3
+  2. You add: Website A (main), Website B (main), Website C (main)
+  3. Main Session is now LOCKED (3/3 used)
+  4. You try to add Website D with Main Session
+  5. Server returns: "Sorry, Main Session is already occupied..."
+  6. Solution: Add a Secondary Session and assign Website D to it
+
+
+================================================================================
+  9. API REFERENCE
+================================================================================
+
+All API routes require the header:
+  Authorization: admin-auth-token-xyz
+
+Except /api/image/:recordId which uses ?key= query param.
+
+--- Authentication ---
+POST /api/login
+  Body: { "password": "admin" }
+  Returns: { "success": true, "token": "admin-auth-token-xyz" }
+
+--- Stats ---
+GET /api/stats
+  Returns: { transmissionToday, connectedWebs, incomingRequests, outgoingRequests }
+
+--- File Upload ---
+POST /api/upload?webId=web_123
+  Body: FormData with "file" field
+  Returns: { success, recordId, privateLink, telegramLink }
+
+--- Secure Image Streaming ---
+GET /api/image/:recordId?key=sec_xxx
+  Returns: Raw image/video bytes with correct Content-Type
+  Validates: Security key + Referer origin
+
+--- Records ---
+GET /api/records
+  Returns: Array of all upload records
+
+--- Web Connections ---
+GET /api/webs
+  Returns: Array of web connections
+
+POST /api/webs
+  Body: { name, url, channel, session, sessionName }
+  Returns: { success, web } or 409 if session is locked
+
+DELETE /api/webs/:id
+
+--- Sessions ---
+GET /api/sessions
+  Returns: Array of secondary sessions (with maxWebs field)
+
+POST /api/sessions
+  Body: { name, sessionString, maxWebs }
+  Returns: { success, session }
+
+DELETE /api/sessions/:id
+
+GET /api/sessions/usage
+  Returns: Array of all sessions with usage stats and lock status
+
+--- Logs ---
+GET /api/logs
+POST /api/logs/clear
+
+--- View Route ---
+GET /view/:recordId?key=sec_xxx
+  Streams file directly (alternative to /api/image)
+
+
+================================================================================
+  10. TROUBLESHOOTING
+================================================================================
+
+PROBLEM: "Failed to load image" in my React app
+  - Check that the Security Key matches your Web Connection
+  - Check that your website domain matches the URL set in the portal
+  - For localhost testing, referer checks allow "localhost" automatically
+
+PROBLEM: "Session is already occupied" error
+  - The session has reached its max web limit
+  - Remove an existing web connection or use a different session
+  - Check usage: GET /api/sessions/usage
+
+PROBLEM: "Telegram client not connected"
+  - The session string may be invalid or expired
+  - Generate a new one: node generate-session.js
+  - Check if another server instance is using the same session string
+
+PROBLEM: "AUTH_KEY_DUPLICATED" error
+  - The same session string is running on another server/device
+  - Generate a fresh session string — each can only be used in ONE place
+
+PROBLEM: Images load slowly
+  - First load is slow because it fetches from Telegram
+  - Subsequent loads use browser cache (24hr Cache-Control header)
+  - Consider adding a CDN in front of the server for production
+
+PROBLEM: CORS errors in browser
+  - The server has cors() middleware enabled by default
+  - If deployed, ensure your domain is allowed
+
+================================================================================
+  END OF GUIDE
+================================================================================
