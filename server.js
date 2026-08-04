@@ -919,10 +919,17 @@ async function streamMediaFromTelegram(req, res, record, uploadClient, messageId
 
         const media = messages[0].media;
         
-        let fileSize = record.size || 0;
+        let fileSize = 0;
         if (media.document && media.document.size) {
             fileSize = parseInt(media.document.size.toString());
+        } else if (media.photo && media.photo.sizes) {
+            const sizes = media.photo.sizes;
+            const largest = sizes[sizes.length - 1];
+            if (largest && largest.size) {
+                fileSize = parseInt(largest.size.toString());
+            }
         }
+        if (!fileSize) fileSize = record.size || 0;
 
         const range = req.headers.range;
         if (range && fileSize > 0) {
@@ -945,18 +952,32 @@ async function streamMediaFromTelegram(req, res, record, uploadClient, messageId
             res.setHeader('Cache-Control', 'public, max-age=604800');
             
             let bytesSent = 0;
+            let aborted = false;
+            req.on('close', () => { aborted = true; });
+            
+            // GramJS iterDownload offset MUST be a multiple of 4096
+            const ALIGNMENT = 4096;
+            const alignedStart = Math.floor(start / ALIGNMENT) * ALIGNMENT;
+            const skipBytes = start - alignedStart;
+            let isFirstChunk = true;
             
             try {
                 for await (const chunk of uploadClient.iterDownload({
                     file: media,
-                    offset: BigInt(start),
+                    offset: BigInt(alignedStart),
                     requestSize: 1024 * 512 // 512KB chunks
                 })) {
-                    if (bytesSent >= chunksize) break;
+                    if (aborted || bytesSent >= chunksize) break;
                     
-                    let toSend = chunk;
-                    if (bytesSent + chunk.length > chunksize) {
-                        toSend = chunk.slice(0, chunksize - bytesSent);
+                    let data = chunk;
+                    if (isFirstChunk && skipBytes > 0) {
+                        data = chunk.slice(skipBytes);
+                    }
+                    isFirstChunk = false;
+                    
+                    let toSend = data;
+                    if (bytesSent + data.length > chunksize) {
+                        toSend = data.slice(0, chunksize - bytesSent);
                     }
                     
                     res.write(toSend);
@@ -980,11 +1001,15 @@ async function streamMediaFromTelegram(req, res, record, uploadClient, messageId
             res.setHeader('Cache-Control', 'public, max-age=604800');
             res.setHeader('X-Cache', 'MISS');
             
+            let aborted = false;
+            req.on('close', () => { aborted = true; });
+            
             try {
                 for await (const chunk of uploadClient.iterDownload({
                     file: media,
                     requestSize: 1024 * 512
                 })) {
+                    if (aborted) break;
                     res.write(chunk);
                 }
             } catch (err) {
