@@ -54,7 +54,9 @@ function memoryCacheSet(key, buffer) {
 const generatingVariants = new Set();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'Content-Type']
+}));
 app.use(express.json());
 // Serve the frontend files from the "public" directory
 app.use(express.static('public'));
@@ -1140,6 +1142,14 @@ app.get('/api/image/:recordId', async (req, res) => {
         // ============================================
         // CACHE-FIRST SERVING (memory only → Telegram fallback)
         // ============================================
+        if (req.method === 'HEAD') {
+            res.setHeader('Content-Type', record.mimetype || 'application/octet-stream');
+            res.setHeader('Accept-Ranges', 'bytes');
+            if (record.size > 0) res.setHeader('Content-Length', record.size);
+            res.setHeader('Cache-Control', 'public, max-age=604800');
+            return res.end();
+        }
+
         if (serveCachedImageResponse(res, recordId, quality)) {
             return; // Served from memory cache in <5ms
         }
