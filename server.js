@@ -138,7 +138,7 @@ async function syncDatabaseFromTelegram() {
                                 mimetype: r.mt || r.mimetype || 'image/jpeg',
                                 filename: r.fn || r.filename || '',
                                 size: r.sz || r.size || 0,
-                                telegramLink: '', // Reconstructed on demand
+                                telegramLink: `https://t.me/c/${(r.ch || r.channelId || GLOBAL_CHANNEL_ID).toString().replace("-100", "")}/${typeof (r.mId || r.messageId) === 'object' ? ((r.mId || r.messageId).high || (r.mId || r.messageId).low || Object.values(r.mId || r.messageId)[0]) : (r.mId || r.messageId)}`,
                                 timestamp: r.ts || r.timestamp || ''
                             });
                         }
@@ -850,13 +850,24 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             }
             fs.unlinkSync(file.path);
         } else {
-            const result = await uploadClient.sendFile(targetChannel, {
-                file: file.path,
-                caption: `Uploaded via Shiv Shakti Server | File: ${file.originalname}`,
-                forceDocument: true,
-            });
-            messageIds = result.id;
-            fs.unlinkSync(file.path);
+            // Create a unique temporary directory to preserve the original filename for Telegram
+            const tempDirName = path.join('temp_uploads', `req_${Date.now()}_${Math.random().toString(36).substring(7)}`);
+            fs.mkdirSync(tempDirName, { recursive: true });
+            
+            const tempFilePath = path.join(tempDirName, file.originalname);
+            fs.renameSync(file.path, tempFilePath);
+            
+            try {
+                const result = await uploadClient.sendFile(targetChannel, {
+                    file: tempFilePath,
+                    caption: `Uploaded via Shiv Shakti Server | File: ${file.originalname}`,
+                    forceDocument: true,
+                });
+                messageIds = result.id;
+            } finally {
+                if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+                if (fs.existsSync(tempDirName)) fs.rmdirSync(tempDirName);
+            }
         }
 
         const fileSize = file.size || 0;
