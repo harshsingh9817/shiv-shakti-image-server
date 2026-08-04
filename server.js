@@ -286,6 +286,15 @@ app.use((req, res, next) => {
         const timestamp = new Date().toISOString();
         const method = req.method;
         const reqPath = req.path;
+        
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || 'Unknown';
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        let source = 'Web';
+        if (/dart|dalvik|cfnetwork|ios|android|okhttp/i.test(userAgent)) {
+            source = 'App';
+        } else if (/postman|insomnia|curl/i.test(userAgent)) {
+            source = 'API Client';
+        }
 
         let reqBody = "";
         if (req.body && Object.keys(req.body).length > 0) {
@@ -314,6 +323,8 @@ app.use((req, res, next) => {
                 timestamp,
                 method,
                 path: reqPath,
+                ip,
+                source,
                 reqBody: reqBody || "None",
                 status: res.statusCode,
                 resBody

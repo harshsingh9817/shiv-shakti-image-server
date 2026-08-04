@@ -474,8 +474,14 @@
                                     <div class="flex" style="gap: 0.5rem; align-items: center;">
                                         <span class="badge" style="background: ${log.method === 'POST' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; color: ${log.method === 'POST' ? '#3b82f6' : '#10b981'};">${log.method}</span>
                                         <code style="color: #fff; font-weight: 600;">${log.path}</code>
+                                        <span class="badge" style="background: rgba(255,255,255,0.1); color: #ccc; margin-left: 0.5rem;">
+                                            <ion-icon name="${log.source === 'App' ? 'phone-portrait-outline' : 'globe-outline'}"></ion-icon> ${log.source || 'Web'}
+                                        </span>
                                     </div>
                                     <span style="color: var(--text-muted);">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                    <strong>IP:</strong> ${log.ip || 'Unknown'}
                                 </div>
                                 <div style="font-size: 0.8rem; color: var(--text-muted);">
                                     <strong>Req Body:</strong> <code style="font-family: monospace; background: rgba(0,0,0,0.2); padding: 2px 4px; border-radius: 4px;">${log.reqBody}</code>
